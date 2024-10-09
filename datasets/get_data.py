@@ -27,3 +27,5 @@ def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], featu
 
     return CLIPDataset(target, path_column, score_column, score_sum, path_flag=True)
 
+if __name__=='__main__':
+    getdata('CSA')
