@@ -53,16 +53,24 @@ def get_id_from_mri(mri_root:str, groups:list=['CSA'], sites:list=['Wrist', 'MCP
     return final_data
 
 
+def process_score(x):
+    if isinstance(x, str):
+        return int(x) if x.isdigit() and int(x) <= 10 and int(x)>=0 else np.nan
+    elif isinstance(x, int):
+        return int(x) if int(x) <= 10 and int(x)>=0 else np.nan
+    raise ValueError(f'x: {x}')
+
+
 def get_id_from_ramris(ramris_root:str) -> pd.DataFrame:
     # CSANUMM 那一列需要左边加Csa, 并且zfill到3
     df:pd.DataFrame = pd.read_csv(ramris_root, sep=';')
     expected_heads = get_score_head(return_all=True)
     for head in expected_heads:
         head1, head2 = head+'.1', head+'.2'
-        df[head1] = df[head1].apply(lambda x: np.nan if x > 10 else x)
-        df[head2] = df[head2].apply(lambda x: np.nan if x > 10 else x)
+        df[head1] = df[head1].apply(lambda x: process_score(x))
+        df[head2] = df[head2].apply(lambda x: process_score(x))
         df[head] = df[[head1, head2]].apply(lambda row: np.nanmean(row) if not all(np.isnan(row)) else np.nan, axis=1)
-    df.rename(columns={'CSANUMM': 'ID'})
+    df = df.rename(columns={'CSANUMM': 'ID'})
     df['ID'] = df['ID'].apply(lambda x: 'Csa' + str(x).zfill(3))
     target_column = ['ID'] + expected_heads
     return df[target_column].copy()

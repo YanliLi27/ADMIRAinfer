@@ -40,7 +40,13 @@ def get_id_from_mri(mri_root:str, groups:list=['TRT', 'PLA'], sites:list=['Wrist
                 for view in views:
                     matches = [item for item in all_scan_folder if re.search(f'{site}_Post{view}T1f', item)]
                     if matches:
-                        data[cur_id_date][f'{site}_{view}'] = central_selector(os.path.join(mri_root, patient, date, matches[0]))
+                        abs_path = os.path.join(mri_root, patient, date, matches[0], 'images', 'itk')
+                        filenames = os.listdir(abs_path)
+                        for filename in filenames:
+                            if filename[-4:]=='.mha':
+                                data[cur_id_date][f'{site}_{view}'] = central_selector(os.path.join(abs_path, filename))
+                                break
+
     heads = {'ID':[], 'DATE':[], 'ID_DATE':[]}
     for site in sites:
         for view in views:
@@ -56,19 +62,31 @@ def get_id_from_mri(mri_root:str, groups:list=['TRT', 'PLA'], sites:list=['Wrist
         paths.clear()
     return final_data  # ID (Treat0001), DATE (20150319), ID_DATE (Treat0001;20150319), 
 
+
+def process_score(x):
+    if isinstance(x, str):
+        return int(x) if x.isdigit() and int(x) <= 10 and int(x)>=0 else np.nan
+    elif isinstance(x, int):
+        return int(x) if int(x) <= 10 and int(x)>=0 else np.nan
+    elif isinstance(x, float):
+        return int(x) if x <= 10 and x>=0 else np.nan
+    raise ValueError(f'x: {x}')
+
+
 def get_id_from_ramris(ramris_root:str) -> pd.DataFrame:
     # CSANUMM 那一列需要左边加Csa, 并且zfill到3
-    df:pd.DataFrame = pd.read_csv(ramris_root, sep=';')
+    df:pd.DataFrame = pd.read_csv(ramris_root, sep=',')
     expected_heads = get_score_head(return_all=True)
     for head in expected_heads:
         head1, head2 = head+'.1', head+'.2'
-        df[head1] = df[head1].apply(lambda x: np.nan if x > 10 else x)
-        df[head2] = df[head2].apply(lambda x: np.nan if x > 10 else x)
+        df[head1] = df[head1].apply(lambda x: process_score(x))
+        df[head2] = df[head2].apply(lambda x: process_score(x))
         df[head] = df[[head1, head2]].apply(lambda row: np.nanmean(row) if not all(np.isnan(row)) else np.nan, axis=1)
-    df.rename(columns={'TENR': 'ID', 'SCANdatum':'DATE', 'hoeveelste_MRI':'TimePoint'})
+    df = df.rename(columns={'TENR': 'ID', 'SCANdatum':'DATE', 'hoeveelste_MRI':'TimePoint'})
     df['DATE'] = df['DATE'].apply(lambda x: str(x).replace('-', ''))  # 2015-03-19 -> 20150319
     df['ID'] = df['ID'].apply(lambda x: 'Treat' + str(x).zfill(4))
-    target_column = ['ID', 'DATE', 'TimePoint'] + expected_heads
+    df['ID_DATE'] = df['ID'] + ';' + df['DATE']
+    target_column = ['ID', 'DATE', 'ID_DATE','TimePoint'] + expected_heads
     return df[target_column].copy()
 
 
@@ -85,7 +103,7 @@ def te_initialization(mri_root:str=r'R:\\AIMIRA\\AIMIRA_Database\\LUMC',
         ramris_id_score:pd.DataFrame = get_id_from_ramris(ramris_root)
         ramris_id_score.to_csv(r'./datasets/te_ramris_init.csv')
     else:
-        ramris_id_score = pd.read_csv(r'./datasets/te_mri_init.csv')
+        ramris_id_score = pd.read_csv(r'./datasets/te_ramris_init.csv')
     # 直接用pandas自带的合并来合并？原则上这里需要用ID_DATE来合并，但是因为spss没有这个信息所以只能用ID来merge
-    result = pd.merge(mri_id_path, ramris_id_score, on='ID', how='outer')
+    result = pd.merge(mri_id_path, ramris_id_score, on=['ID', 'DATE', 'ID_DATE'], how='outer')
     return result

@@ -56,6 +56,7 @@ def central_selector(datapath:str)->str:
     data = sitk.ReadImage(datapath)
     data_array = sitk.GetArrayFromImage(data)  # output [slice, 512, 512]
     if data_array.shape[0] < 7:
+        return None
         raise ValueError(f'{datapath} have shape of {data_array.shape}')
     data_array = _normalization(data_array)  # 可以使用class内的normalization
     square_mr2, square_oa2 = _square_selector(data_array)  # [slice, 512, 512] the mask for each slice
