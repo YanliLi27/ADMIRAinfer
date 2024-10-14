@@ -1,7 +1,7 @@
 from typing import Literal, Optional
 
 
-def get_score_head(site:Literal['Wrist','MCP','Foot'], feature:Literal['TSY','SYN','BME'], return_all:bool=False) -> list:
+def get_score_head(site:Literal['Wrist','MCP','Foot']='Wrist', feature:Literal['TSY','SYN','BME']='TSY', return_all:bool=False) -> list:
     default_site:list={'Wrist':0, 'MCP':1, 'Foot':2}
     default_bio:list={'ERO':0, 'BME':1, 'SYN':2, 'TSY':3}
     output_keys = [

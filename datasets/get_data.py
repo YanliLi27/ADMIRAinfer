@@ -9,7 +9,7 @@ from .dataset import CLIPDataset
 
 def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], feature:Literal['TSY','SYN','BME'], 
             filt:Optional[list]=None, score_sum:bool=False):
-    path_default = {'CSA':'./datasets/csa_init.csv', 'TE':'./datasets/te_init.csv'}
+    path_default = {'CSA':r'./datasets/csa_init.csv', 'TE':r'./datasets/te_init.csv'}
     paths = path_default[task]
 
     if not os.path.exists(paths):
@@ -27,5 +27,3 @@ def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], featu
 
     return CLIPDataset(target, path_column, score_column, score_sum, path_flag=True)
 
-if __name__=='__main__':
-    getdata('CSA')

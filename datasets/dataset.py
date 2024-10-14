@@ -58,7 +58,7 @@ class CLIPDataset(data.Dataset):
         for indiv_path in paths:
             # indiv_path: 'subdir\names.mha:cs'
             # updated: 'subdir\names.mha:1to6plus1to11'
-            path, cs = indiv_path.split(';')  # 'subdir\names.mha', 'cs'
+            path, cs = indiv_path.split(']')  # 'subdir\names.mha', 'cs'
             lower, upper = cs.split('to')
             lower, upper = int(lower), int(upper)
 
@@ -90,7 +90,7 @@ class CLIPDataset(data.Dataset):
         paths = self.df.loc[idx, self.path_column].to_numpy()
         for indiv_path in paths:
             # indiv_path: 'subdir\names.mha:cs'
-            path, _ = indiv_path.split(';')  # 'subdir\names.mha', 'cs'
+            path, _ = indiv_path.split(']')  # 'subdir\names.mha', 'cs'
             data_mha = sitk.ReadImage(path)
             data_array = sitk.GetArrayFromImage(data_mha)
             data_array = self._itensity_normalize(data_array)  # [20, 512, 512]

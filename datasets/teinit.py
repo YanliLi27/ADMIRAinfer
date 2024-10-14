@@ -41,12 +41,18 @@ def get_id_from_mri(mri_root:str, groups:list=['TRT', 'PLA'], sites:list=['Wrist
                     matches = [item for item in all_scan_folder if re.search(f'{site}_Post{view}T1f', item)]
                     if matches:
                         data[cur_id_date][f'{site}_{view}'] = central_selector(os.path.join(mri_root, patient, date, matches[0]))
-    final_data:pd.DataFrame = pd.DataFrame()
+    heads = {'ID':[], 'DATE':[], 'ID_DATE':[]}
+    for site in sites:
+        for view in views:
+            heads[f'{site}_{view}'] = []
+    final_data:pd.DataFrame = pd.DataFrame(index=range(len(data.keys())), columns=heads)
+    idx = 0
     for id_date in data.keys():
         id, date = id_date.split(';')
         paths:dict = data[id_date]
         paths['ID'], paths['DATE'], paths['ID_DATE'] = id, date, id_date
-        final_data.loc(len(final_data)) = paths
+        final_data.loc[idx] = paths
+        idx+=1
         paths.clear()
     return final_data  # ID (Treat0001), DATE (20150319), ID_DATE (Treat0001;20150319), 
 
@@ -66,13 +72,20 @@ def get_id_from_ramris(ramris_root:str) -> pd.DataFrame:
     return df[target_column].copy()
 
 
-def te_initialization(mri_root:str='R:\\AIMIRA\\AIMIRA_Database\\LUMC', 
-                      ramris_root:str='R:\\AIMIRA\\AIMIRA_Scores\\SPSS data\\TE_scores_MRI_serieel_nieuw.csv') -> pd.DataFrame:
+def te_initialization(mri_root:str=r'R:\\AIMIRA\\AIMIRA_Database\\LUMC', 
+                      ramris_root:str=r'R:\\AIMIRA\\AIMIRA_Scores\\SPSS data\\TE_scores_MRI_serieel_nieuw.csv') -> pd.DataFrame:
     # 首先获得全部的IDlist，根据mri_root进行
-    mri_id_path:pd.DataFrame = get_id_from_mri(mri_root)
-    # ID (Treat0003), DATE(20202020), ID_DATE(ID;DATE), Site_View * 6 (abs_path;NtoN+7)
-    ramris_id_score:pd.DataFrame = get_id_from_ramris(ramris_root)
-    # ID (from TENR to ID), Site_Bio_FEATURES * N
+    if not os.path.exists(r'./datasets/te_mri_init.csv'): 
+        mri_id_path:pd.DataFrame = get_id_from_mri(mri_root)
+        mri_id_path.to_csv(r'./datasets/te_mri_init.csv')
+    else:
+        mri_id_path = pd.read_csv(r'./datasets/te_mri_init.csv')
+    # ID (Csa003), DATE(20202020), ID_DATE(ID;DATE), Site_View * 6 (abs_path;NtoN+7)
+    if not os.path.exists(r'./datasets/te_ramris_init.csv'): 
+        ramris_id_score:pd.DataFrame = get_id_from_ramris(ramris_root)
+        ramris_id_score.to_csv(r'./datasets/te_ramris_init.csv')
+    else:
+        ramris_id_score = pd.read_csv(r'./datasets/te_mri_init.csv')
     # 直接用pandas自带的合并来合并？原则上这里需要用ID_DATE来合并，但是因为spss没有这个信息所以只能用ID来merge
     result = pd.merge(mri_id_path, ramris_id_score, on='ID', how='outer')
     return result
