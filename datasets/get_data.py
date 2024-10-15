@@ -8,7 +8,7 @@ from .dataset import CLIPDataset
 
 
 def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], feature:Literal['TSY','SYN','BME'], 
-            filt:Optional[list]=None, score_sum:bool=False):
+            filt:Optional[list]=None, score_sum:bool=False, path_flag:bool=True):
     path_default = {'CSA':r'./datasets/csa_init.csv', 'TE':r'./datasets/te_init.csv'}
     paths = path_default[task]
 
@@ -25,5 +25,5 @@ def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], featu
     # 筛除某些部分
     if filt: target = target[target['ID'].isin(filt)]
 
-    return CLIPDataset(target, path_column, score_column, score_sum, path_flag=True), target.shape[0]
+    return CLIPDataset(target, path_column, score_column, score_sum, path_flag), target.shape[0]
 

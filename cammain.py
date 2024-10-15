@@ -1,8 +1,10 @@
 from typing import Literal, Optional
 import pandas as pd
 import torch
+import os
 import platform
 from tqdm import tqdm
+import SimpleITK as sitk
 from .cam_components import CAMAgent
 from .datasets.get_data import getdata
 from .models.get_model import getmodel
@@ -22,7 +24,7 @@ def cam_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot
     target_layer = [model.features[-1]]
     # 数据读取需要task, site, feature
     # 数据返回应该是 img, scores, path (id, date)
-    data, _ = getdata(task, site, feature, filt, score_sum)
+    data, _ = getdata(task, site, feature, filt, score_sum, path_flag=False)
     # filt 用来控制哪些id会被使用
     # data: x,y,z: img, scores, path
 
@@ -42,16 +44,31 @@ def cam_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot
             )
 
     # -------------------------------------------------------- record ----------------------------------------------------- #
-    valdata = DataLoader(dataset=data, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    valdata, _ = getdata(task, site, feature, filt, score_sum, path_flag=True)
+    valdataloader = DataLoader(dataset=valdata, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    Agent.creator_main(valdata, 'Default', False, True, None, False, None)
-    # for x, y, z in data:
-    #     x = x.to(device) # [batch, 1, L, W]
-    #     y = y.to(device) # [label/scores float]
-    #     # z path/number of the CSA/TE [int]
-    #     cam = Agent.indiv_return(x, 1, None, False)
-    #     # [batch, 1(Group), 1(category in list), D, L, W]
+    # Agent.creator_main(valdataloader, 'Default', False, True, None, False, None) # 无法提供路径
+    cnt = 0
+    for x, y, z in data:
+        x = x.to(device) # [batch, channel, D, L, W]
+        y = y.to(device) # [label/scores float]
+        # z path/number of the CSA/TE [int]
+        cam = Agent.indiv_return(x, 1, None, False)
+        # [batch, 1(Group), 1(category in list), D, L, W]
+        for b in range(cam.shape[0]):
+            for g in range(cam.shape[1]):
+                save_name = os.path.join(f'./output/ramris_site{site}_fea{feature}', f'ramris_ID{z[b]}_group{g}_fea{feature}.nii.gz')
+                writter = sitk.ImageFileWriter()
+                writter.SetFileName(save_name)
+                writter.Execute(sitk.GetImageFromArray(cam[b][g][0]))
+
+                origin_save_name = os.path.join(f'./output/ramris_site{site}_fea{feature}', f'ramris_ID{z[b]}_group{g}_origin.nii.gz')
+                if not os.path.isfile(origin_save_name):
+                    writter.SetFileName(origin_save_name)
+                    # [batch, organ_groups, z, y, x, channel] to [batch, organ_groups, z, y, x]
+                    writter.Execute(sitk.GetImageFromArray(x[b][g]))
+
 
 
 if __name__=='__main__':
