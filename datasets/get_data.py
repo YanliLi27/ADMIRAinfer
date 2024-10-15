@@ -25,5 +25,5 @@ def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], featu
     # 筛除某些部分
     if filt: target = target[target['ID'].isin(filt)]
 
-    return CLIPDataset(target, path_column, score_column, score_sum, path_flag=True)
+    return CLIPDataset(target, path_column, score_column, score_sum, path_flag=True), target.shape[0]
 

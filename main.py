@@ -26,7 +26,7 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     # 数据读取需要task, site, feature
     # 数据返回应该是 img, scores, path (id, date)
-    data = getdata(task, site, feature, filt)
+    data, maxidx = getdata(task, site, feature, filt)
     # CSA那个需要返回所有选择的CSA的列表并进行On-fly选中间的切片
     # TE那个需要返回所有的Timepoint的列表并进行On-fly选中间的切片
     # x,y,z: img, scores, path
@@ -36,10 +36,8 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
     res_head= ['ID', 'ScanDatum', 'ID_Timepoint']
     res_head.extend(return_head(site, feature))
     res_head.extend(return_head_gt(site, feature))
-    df_dict = {}
-    for column in res_head: df_dict[column] = []
-    df = pd.DataFrame(df_dict)
-
+    df = pd.DataFrame(index=range(maxidx), columns=res_head)
+    idx = 0
     for x, y, z in dataloader:
         x = x.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
         # Tensor
@@ -49,8 +47,8 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
             row = [pid, ptp, f'{pid}_{ptp}']
             row.extend(pred[i].cpu().numpy())
             row.extend(y[i].cpu().numpy())
-            new_row = pd.DataFrame([row])
-            pd.concat([df, new_row], ignore_index=True)
+            df.loc[idx] = row
+            idx += 1
         # 用pd.concat([df, new_row], ignore_index=True)来添加新的一行数据
     df.to_csv(f'./outputs/{site}_{feature}_{task}.csv')
 
