@@ -19,14 +19,15 @@ from torch.utils.data import DataLoader
 
 
 def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
-                 feature:Literal['TSY','SYN','BME'], order:int=0, filt:Optional[list]=None):
+                 feature:Literal['TSY','SYN','BME'], order:int=0, 
+                 score_sum:bool=False, filt:Optional[list]=None):
     # 模型本身和权重都需要site feature
-    model = getmodel(site, feature, score_sum=False)  # DONE!
+    model = getmodel(site, feature, score_sum)  # DONE!
     model = getweight(model, site, feature, order)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     # 数据读取需要task, site, feature
     # 数据返回应该是 img, scores, path (id, date)
-    data, maxidx = getdata(task, site, feature, filt)
+    data, maxidx = getdata(task, site, feature, filt, score_sum)
     # CSA那个需要返回所有选择的CSA的列表并进行On-fly选中间的切片
     # TE那个需要返回所有的Timepoint的列表并进行On-fly选中间的切片
     # x,y,z: img, scores, path
