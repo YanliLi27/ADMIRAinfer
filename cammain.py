@@ -19,7 +19,7 @@ def cam_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot
     
     # 模型本身和权重都需要site feature
     model = getmodel(site, feature, score_sum)  # DONE!
-    model = getweight(model, site, feature, order)  # DONE!
+    model = getweight(model, site, feature, view=None, order=0)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     target_layer = [model.features[-1]]
     # 数据读取需要task, site, feature

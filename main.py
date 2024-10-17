@@ -6,7 +6,7 @@
 #  f'{Site}_{Feature}_{Group}.csv'
 # 最后用一个pandas merge在另一个文件里面把所有的结果merge起来，根据ID, time_point来计算
 # 本程序只需要循环Site和Feature即可
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 import pandas as pd
 import torch
 from .datasets.get_data import getdata
@@ -19,15 +19,16 @@ from torch.utils.data import DataLoader
 
 
 def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
-                 feature:Literal['TSY','SYN','BME'], order:int=0, 
-                 score_sum:bool=False, filt:Optional[list]=None):
+                 feature:Literal['TSY','SYN','BME'], 
+                 view:Optional[List[str]]=['TRA', 'COR'],
+                 order:int=0, score_sum:bool=False, filt:Optional[list]=None):
     # 模型本身和权重都需要site feature
-    model = getmodel(site, feature, score_sum)  # DONE!
-    model = getweight(model, site, feature, order)  # DONE!
+    model = getmodel(site, feature, view, score_sum)  # DONE!
+    model = getweight(model, site, feature, view, order)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     # 数据读取需要task, site, feature
     # 数据返回应该是 img, scores, path (id, date)
-    data, maxidx = getdata(task, site, feature, filt, score_sum)
+    data, maxidx = getdata(task, site, feature, view, filt, score_sum=False, path_flag=True)
     # CSA那个需要返回所有选择的CSA的列表并进行On-fly选中间的切片
     # TE那个需要返回所有的Timepoint的列表并进行On-fly选中间的切片
     # x,y,z: img, scores, path
@@ -63,4 +64,4 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
 if __name__=='__main__':
     for site in ['Wrist', 'MCP', 'Foot']:
         for feature in ['TSY','SYN','BME']:
-            main_process('CSA', site, feature)
+            main_process('CSA', site, feature, view=['TRA', 'COR'], order=0, score_sum=False, filt=None)

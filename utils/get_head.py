@@ -22,7 +22,7 @@ def return_head(site, bio, return_all:bool=False):
     if return_all:
         keys = []
         for i in range(0, 3):
-            for j in range(1, 3):
+            for j in range(0, 4):
                 keys.extend(output_keys[i][j])  # 15+3+10+8+4+8+10+5+10
     keys = output_keys[default_site[site]][default_bio[bio]]
     return keys # list
@@ -52,7 +52,7 @@ def return_head_gt(site, bio, return_all:bool=False):
     if return_all:
         keys = []
         for i in range(0, 3):
-            for j in range(1, 3):
+            for j in range(0, 4):
                 keys.extend(output_keys[i][j])  # 15+3+10+8+4+8+10+5+10
     keys = output_keys[default_site[site]][default_bio[bio]]
     return keys # list
