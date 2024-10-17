@@ -52,7 +52,7 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
             df.loc[idx] = row
             idx += 1
         # 用pd.concat([df, new_row], ignore_index=True)来添加新的一行数据
-    df.to_csv(f'./outputs/{site}_{feature}_{task}.csv')
+    df.to_csv(f'./output/{site}_{feature}_{task}.csv')
 
     # inference:
     # 直接for x,y,z in Dataloader():
