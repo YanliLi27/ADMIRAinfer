@@ -5,7 +5,8 @@ import torch
 
 def getweight(model, site:Literal['Wrist','MCP','Foot'],
             feature:Literal['TSY','SYN','BME'], order:int=0):
-    path = f'./trained_weights/{site}_{feature}_{order}.model'
+    view = 'COR' if feature in ['SYN', 'BME'] else 'TRA'
+    path = f'./trained_weights/{site}_{feature}_{view}_{order}.model'
     if os.path.isfile(path):
         checkpoint = torch.load(path)
         model.load_state_dict(checkpoint)

@@ -9,9 +9,10 @@ import torch
 from typing import Union
 
 
-class CLIPDataset(data.Dataset):
+class CLIPDataset3D(data.Dataset):
     def __init__(self, df:pd.DataFrame, path_column:list, score_column:list,
                  score_sum:bool=False, path_flag:bool=False):
+        df = df.reset_index(drop=True)
         self.df:pd.DataFrame = df
         self.id = df['ID'].values
         self.date = df['DATE'].values
@@ -19,7 +20,6 @@ class CLIPDataset(data.Dataset):
         self.score_column:list = score_column
 
         self.transform = None
-        self.dimension = 3
         self.score_sum = score_sum
         self.slices = 7
         self.full_img = False
@@ -36,17 +36,16 @@ class CLIPDataset(data.Dataset):
         else:
             data = self._load_file(idx)  # data list [scan-tra, scan-cor]
         # data list[N, array[5/7/20, 512, 512]], path
-        scores = self.df.loc[idx, self.score_column].to_numpy()
+        scores = np.sum(np.asarray([self.df.loc[idx, self.score_column].to_numpy()], dtype=np.float32), axis=1) if self.score_column \
+            else np.asarray(self.df.loc[idx, self.score_column].to_numpy())
         
         for i in range(len(data)):
             data[i] = torch.from_numpy(data[i])
             if self.transform is not None:
                 data[i] = self.transform(data[i])
         # data list [tensors]
-        if self.dimension==2:
-            data = torch.vstack(data)  # [Site*TRA/COR*slice/depth, length, width]
-        else:
-            data = torch.stack(data)  # [Site*TRA/COR, slice/depth, length, width]
+        data = torch.stack(data)  # [Site*TRA/COR, slice/depth, length, width]
+
         if self.path_flag:
             return data, scores, path
         return data, scores 

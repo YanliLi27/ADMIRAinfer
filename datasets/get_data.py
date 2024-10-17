@@ -4,10 +4,10 @@ from typing import Literal, Optional
 from .csainit import csa_initialization
 from .teinit import te_initialization
 from .headdict import get_score_head
-from .dataset import CLIPDataset
+from .dataset import CLIPDataset3D
 
 
-def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], feature:Literal['TSY','SYN','BME'], 
+def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], feature:Literal['TSY','SYN','BME'], view:list[str]=['TRA', 'COR'], 
             filt:Optional[list]=None, score_sum:bool=False, path_flag:bool=True):
     path_default = {'CSA':r'./datasets/csa_init.csv', 'TE':r'./datasets/te_init.csv'}
     paths = path_default[task]
@@ -17,13 +17,18 @@ def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], featu
         df.to_csv(paths)
     else:
         df:pd.DataFrame = pd.read_csv(paths)
-    path_column = [col for col in df.columns if f'{site}' in col]
+    if len(view)>1:
+        path_column = [col for col in df.columns if f'{site}' in col]
+    else:
+        path_column = [col for col in df.columns if f'{site}_{view[0]}' in col]
     pre = ['ID', 'DATE', 'ID_DATE']
     pre.extend(path_column)
     score_column = get_score_head(site, feature)
-    target:pd.DataFrame = df[pre]    # ID, DATE, ID_DATE, SITE_TRA, SITE_COR   
+    pre.extend(score_column)
+    target:pd.DataFrame = df[pre]    # ID, DA.dropna()TE, ID_DATE, SITE_TRA, SITE_COR   
     # 筛除某些部分
     if filt: target = target[target['ID'].isin(filt)]
+    target = target.dropna()
 
-    return CLIPDataset(target, path_column, score_column, score_sum, path_flag), target.shape[0]
+    return CLIPDataset3D(target, path_column, score_column, score_sum, path_flag), target.shape[0]
 

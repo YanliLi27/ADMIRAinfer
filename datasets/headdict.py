@@ -23,7 +23,7 @@ def get_score_head(site:Literal['Wrist','MCP','Foot']='Wrist', feature:Literal['
     if return_all:
         keys = []
         for i in range(0, 3):
-            for j in range(1, 3):
+            for j in range(0, 4):
                 keys.extend(output_keys[i][j])  # 15+3+10+8+4+8+10+5+10
         return keys
     return output_keys[default_site[site]][default_bio[feature]]
