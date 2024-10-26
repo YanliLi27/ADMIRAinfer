@@ -5,7 +5,7 @@ import torch
 
 def getweight(model, site:Literal['Wrist','MCP','Foot'],
             feature:Literal['TSY','SYN','BME'], 
-            view:Optional[List[str]]=['SYN', 'BME'], order:Optional[int]=0):
+            view:Optional[List[str]]=['TRA', 'COR'], order:Optional[int]=0):
     if not view: view = ['COR'] if feature in ['SYN', 'BME'] else ['TRA']
     if len(view)<2:
         path = f'./trained_weights/{site}_{feature}_{view[0]}_{order}.model'

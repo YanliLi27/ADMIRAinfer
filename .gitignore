@@ -7,4 +7,10 @@
 /trained_weights/Wrist_BME_COR_0.model
 /trained_weights/Wrist_SYN_COR_0.model
 /trained_weights/Wrist_TSY_TRA_0.model
+/trained_weights/Wrist_BME_multiview_0.model
+/trained_weights/Wrist_SYN_multiview_0.model
+/trained_weights/Wrist_TSY_multiview_0.model
+/trained_weights/Wrist_BME_multiview_1.model
+/trained_weights/Wrist_SYN_multiview_1.model
+/trained_weights/Wrist_TSY_multiview_1.model
 /output
