@@ -16,7 +16,8 @@ from torch.utils.data import DataLoader
 def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
                            feature:Literal['TSY','SYN','BME'], view:Optional[List[str]]=['TRA', 'COR'], 
                            score_sum:bool=False, filt:Optional[list]=None):
-    
+    if not view:
+        view = ['COR'] if feature in ['SYN', 'BME'] else ['TRA']
     # 模型本身和权重都需要site feature
     model = getmodel(site, feature, view, score_sum)  # DONE!
     model = getweight(model, site, feature, view, order=0)  # DONE!
@@ -33,7 +34,6 @@ def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP'
             333, 248, 585, 42, 275, 513, 526, 292, 602, 129, 188, 197, 130, 476, 71, 
             176, 335, 131, 291, 598, 135, 431, 560, 722, 133, 314, 781, 156, 356]
     filt = ['Csa' + str(x).zfill(3) for x in filt]
-    view = ['COR'] if feature in ['SYN', 'BME'] else ['TRA']
     data, _ = getdata(task, site, feature, view, filt, score_sum, path_flag=False)
     data = DataLoader(dataset=data, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
     # filt 用来控制哪些id会被使用
@@ -88,4 +88,4 @@ def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP'
 if __name__=='__main__':
     for site in ['Wrist']: #, 'MCP', 'Foot']:
         for feature in ['TSY','SYN','BME']:
-            cam_2view_main_process('CSA', site, feature, 0, True)
+            cam_2view_main_process('CSA', site, feature, ['TRA', 'COR'], True)
