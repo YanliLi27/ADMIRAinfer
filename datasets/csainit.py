@@ -84,12 +84,15 @@ def csa_initialization(mri_root:str=r'E:\ESMIRA_RAprediction\Export20Jun22',
         mri_id_path.to_csv(r'./datasets/csa_mri_init.csv')
     else:
         mri_id_path = pd.read_csv(r'./datasets/csa_mri_init.csv')
+        mri_id_path['DATE'] = mri_id_path['DATE'].astype(int)
     # ID (Csa003), DATE(20202020), ID_DATE(ID;DATE), Site_View * 6 (abs_path;NtoN+7)
     if not os.path.exists(r'./datasets/csa_ramris_init.csv'): 
         ramris_id_score:pd.DataFrame = get_id_from_ramris(ramris_root)
         ramris_id_score.to_csv(r'./datasets/csa_ramris_init.csv')
     else:
-        ramris_id_score = pd.read_csv(r'./datasets/csa_mri_init.csv')
+        ramris_id_score = pd.read_csv(r'./datasets/csa_ramris_init.csv')
     # ID (from CSANUMM to ID), Site_Bio_FEATURES * N
     result = pd.merge(mri_id_path, ramris_id_score, on='ID', how='outer')
+    result['DATE'] = result['DATE'].fillna(0).astype(int)
+    result['DATE'] = result['DATE'].replace(0, np.nan)
     return result

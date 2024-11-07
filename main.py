@@ -24,7 +24,7 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
                  order:int=0, score_sum:bool=False, filt:Optional[list]=None):
     # 模型本身和权重都需要site feature
     model = getmodel(site, feature, view, score_sum)  # DONE!
-    model = getweight(model, site, feature, view, order)  # DONE!
+    model = getweight(model, site, feature, score_sum, view, order)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     # 数据读取需要task, site, feature
     # 数据返回应该是 img, scores, path (id, date)
@@ -63,5 +63,5 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
 
 if __name__=='__main__':
     for site in ['Wrist', 'MCP', 'Foot']:
-        for feature in ['TSY','SYN','BME']:
+        for feature in ['TSY']:
             main_process('CSA', site, feature, view=['TRA', 'COR'], order=0, score_sum=False, filt=None)

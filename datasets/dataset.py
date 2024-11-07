@@ -30,7 +30,7 @@ class CLIPDataset3D(data.Dataset):
         return self.id.shape[0]
 
     def __getitem__(self, idx):
-        path = f'{self.id[idx]}_{self.date[idx]}'
+        path = f'{self.id[idx]}_{int(self.date[idx])}'
         if self.full_img:
             data = self._load_full(idx)  # data list [scan-tra, scan-cor]
         else:

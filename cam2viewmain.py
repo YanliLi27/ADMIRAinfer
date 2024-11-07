@@ -2,6 +2,7 @@ from typing import Literal, Optional, List
 import pandas as pd
 import torch
 import os
+import numpy as np
 import platform
 from tqdm import tqdm
 import SimpleITK as sitk
@@ -20,7 +21,7 @@ def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP'
         view = ['COR'] if feature in ['SYN', 'BME'] else ['TRA']
     # 模型本身和权重都需要site feature
     model = getmodel(site, feature, view, score_sum)  # DONE!
-    model = getweight(model, site, feature, view, order=0)  # DONE!
+    model = getweight(model, site, feature, score_sum, view, order=0)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     target_layer = [model.features[-1]]
     # 数据读取需要task, site, feature
@@ -38,13 +39,13 @@ def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP'
     data = DataLoader(dataset=data, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
     # filt 用来控制哪些id会被使用
     # data: x,y,z: img, scores, path
-
+    namestr = f'ramris_site{site}_fea{feature}_{view[0]}' if len(view)<2 else f'ramris_site{site}_fea{feature}_multiview'
     # CAM生成不需要采用head的模式，只需要正常往后推就可以
     # -------------------------------------------------- initialize camagent ----------------------------------------------- #
     Agent = CAMAgent(model, target_layer, data,  
             groups=len(view), ram=True,
             # optional:
-            cam_method='fullcam', name_str=f'ramris_site{site}_fea{feature}_multiview',# cam method and im paths and cam output
+            cam_method='fullcam', name_str=namestr,# cam method and im paths and cam output
             batch_size=1, select_category=0,  # info of the running process
             rescale='norm',  remove_minus_flag=False, scale_ratio=1.5,
             feature_selection='all', feature_selection_ratio=0.05,  # feature selection
@@ -70,14 +71,13 @@ def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP'
         for b in range(cam.shape[0]):
             cnt+=1
             for g in range(cam.shape[1]):
-                save_name = os.path.join(f'./output/ramris_site{site}_fea{feature}_multiview/cam/fullcam/scalenorm_rmFalse_feall0.05/cate0', 
-                                         f'ramris_ID{z[b]}_view{view[g]}_fea{feature}_score{y[b]}.nii.gz')
+                save_name = f'./output/{namestr}/cam/fullcam/scalenorm_rmFalse_feall0.05/cate0/ID{z[b]}_view{view[g]}_sc{y[b].numpy()[0]}.nii.gz'
+                # D:\ESMIRAcode\RAMRISinfer\output\ramris_siteWrist_feaTSY_TRA\cam\fullcam\scalenorm_rmFalse_feall0.05\cate0
                 writter = sitk.ImageFileWriter()
                 writter.SetFileName(save_name)
                 writter.Execute(sitk.GetImageFromArray(cam[b][g][0]))
 
-                origin_save_name = os.path.join(f'./output/ramris_site{site}_fea{feature}_multiview/cam/fullcam/scalenorm_rmFalse_feall0.05/cate0', 
-                                                f'ramris_ID{z[b]}_view{view[g]}_origin.nii.gz')
+                origin_save_name = f'./output/{namestr}/cam/fullcam/scalenorm_rmFalse_feall0.05/cate0/ID{z[b]}_view{view[g]}_origin.nii.gz'
                 if not os.path.isfile(origin_save_name):
                     writter.SetFileName(origin_save_name)
                     # [batch, organ_groups, z, y, x, channel] to [batch, organ_groups, z, y, x]
@@ -88,4 +88,5 @@ def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP'
 if __name__=='__main__':
     for site in ['Wrist']: #, 'MCP', 'Foot']:
         for feature in ['TSY','SYN','BME']:
-            cam_2view_main_process('CSA', site, feature, ['TRA', 'COR'], True)
+            for view in [['TRA'], ['COR']]:
+                cam_2view_main_process('CSA', site, feature, view, True)

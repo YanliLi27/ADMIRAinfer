@@ -22,7 +22,7 @@ def main_process3d(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot']
     model_seg_cor = model_seg_find(in_channel=3, n_classes=19, width=1, site='cor', fold_order=0)
     # get regression model
     model = getmodel(site, feature, view, score_sum)  # DONE!
-    model = getweight(model, site, feature, view, order=0)  # DONE!
+    model = getweight(model, site, feature, score_sum, view, order=0)  # DONE!
     model = model.to(device)
     target_layer = [model.features[-1]]
     # get data
