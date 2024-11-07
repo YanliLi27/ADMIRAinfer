@@ -92,7 +92,7 @@ def csa_initialization(mri_root:str=r'E:\ESMIRA_RAprediction\Export20Jun22',
     else:
         ramris_id_score = pd.read_csv(r'./datasets/csa_ramris_init.csv')
     # ID (from CSANUMM to ID), Site_Bio_FEATURES * N
-    result = pd.merge(mri_id_path, ramris_id_score, on='ID', how='outer')
+    result = pd.merge(mri_id_path, ramris_id_score, on='ID', how='left')
     result['DATE'] = result['DATE'].fillna(0).astype(int)
     result['DATE'] = result['DATE'].replace(0, np.nan)
     return result

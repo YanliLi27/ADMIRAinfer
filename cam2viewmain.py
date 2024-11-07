@@ -11,7 +11,6 @@ from datasets.get_data import getdata
 from models.get_model import getmodel
 from trained_weights.get_weight import getweight
 from utils.get_head import return_head, return_head_gt
-from utils.get_path import getpath
 from torch.utils.data import DataLoader
 
 def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],

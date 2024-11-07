@@ -13,8 +13,8 @@ from datasets.get_data import getdata
 from models.get_model import getmodel
 from trained_weights.get_weight import getweight
 from utils.get_head import return_head, return_head_gt
-from utils.get_path import getpath
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 
 
@@ -26,6 +26,7 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
     model = getmodel(site, feature, view, score_sum)  # DONE!
     model = getweight(model, site, feature, score_sum, view, order)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    model.eval()
     # 数据读取需要task, site, feature
     # 数据返回应该是 img, scores, path (id, date)
     data, maxidx = getdata(task, site, feature, view, filt, score_sum=False, path_flag=True)
@@ -40,17 +41,18 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
     res_head.extend(return_head_gt(site, feature))
     df = pd.DataFrame(index=range(maxidx), columns=res_head)
     idx = 0
-    for x, y, z in dataloader:
+    for x, y, z in tqdm(dataloader):
         x = x.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
         # Tensor
-        pred:torch.Tensor = model(x)  # [B, num_scores] Tensor
-        for i in range(x.shape[0]):
-            pid, ptp = getpath(z[i].cpu().numpy())    # getpath Done!
-            row = [pid, ptp, f'{pid}_{ptp}']
-            row.extend(pred[i].cpu().numpy())
-            row.extend(y[i].cpu().numpy())
-            df.loc[idx] = row
-            idx += 1
+        with torch.no_grad():
+            pred:torch.Tensor = model(x)  # [B, num_scores] Tensor
+            for i in range(x.shape[0]):
+                pid, ptp = z[i].split('_')  # getpath Done!
+                row = [pid, ptp, f'{pid}_{ptp}']
+                row.extend(pred[i].cpu().numpy())
+                row.extend(y[i].cpu().numpy())
+                df.loc[idx] = row
+                idx += 1
         # 用pd.concat([df, new_row], ignore_index=True)来添加新的一行数据
     df.to_csv(f'./output/{site}_{feature}_{task}.csv')
 

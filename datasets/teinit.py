@@ -105,5 +105,5 @@ def te_initialization(mri_root:str=r'R:\\AIMIRA\\AIMIRA_Database\\LUMC',
     else:
         ramris_id_score = pd.read_csv(r'./datasets/te_ramris_init.csv')
     # 直接用pandas自带的合并来合并？原则上这里需要用ID_DATE来合并，但是因为spss没有这个信息所以只能用ID来merge
-    result = pd.merge(mri_id_path, ramris_id_score, on=['ID', 'DATE', 'ID_DATE'], how='outer')
+    result = pd.merge(mri_id_path, ramris_id_score, on=['ID', 'DATE', 'ID_DATE'], how='left')
     return result

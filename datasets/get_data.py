@@ -18,7 +18,7 @@ def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], featu
     else:
         df:pd.DataFrame = pd.read_csv(paths)
     if len(view)>1:
-        path_column = [col for col in df.columns if f'{site}' in col]
+        path_column = [col for col in df.columns if f'{site}_' in col]
     else:
         path_column = [col for col in df.columns if f'{site}_{view[0]}' in col]
     pre = ['ID', 'DATE', 'ID_DATE']

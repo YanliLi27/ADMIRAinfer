@@ -36,8 +36,8 @@ class CLIPDataset3D(data.Dataset):
         else:
             data = self._load_file(idx)  # data list [scan-tra, scan-cor]
         # data list[N, array[5/7/20, 512, 512]], path
-        scores = np.sum(np.asarray([self.df.loc[idx, self.score_column].to_numpy()], dtype=np.float32), axis=1) if self.score_column \
-            else np.asarray(self.df.loc[idx, self.score_column].to_numpy())
+        scores = np.sum(np.asarray([self.df.loc[idx, self.score_column].to_numpy()], dtype=np.float32), axis=1) if self.score_sum \
+            else self.df.loc[idx, self.score_column].to_numpy().astype(float)
         
         for i in range(len(data)):
             data[i] = torch.from_numpy(data[i])
@@ -57,7 +57,14 @@ class CLIPDataset3D(data.Dataset):
         for indiv_path in paths:
             # indiv_path: 'subdir\names.mha:cs'
             # updated: 'subdir\names.mha:1to6plus1to11'
-            path, cs = indiv_path.split(']')  # 'subdir\names.mha', 'cs'
+            try:
+                path, cs =  indiv_path.split('[')
+            except:
+                try:
+                    first, sec, cs = indiv_path.split('[')
+                    path = first + '[' + sec
+                except:
+                    raise ValueError(f'wrong path: {indiv_path} from idx: {paths}')
             lower, upper = cs.split('to')
             lower, upper = int(lower), int(upper)
 
