@@ -29,7 +29,7 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
     model.eval()
     # 数据读取需要task, site, feature
     # 数据返回应该是 img, scores, path (id, date)
-    data, maxidx = getdata(task, site, feature, view, filt, score_sum=False, path_flag=True)
+    data, maxidx = getdata(task, site, feature, view, filt, score_sum, path_flag=True)
     # CSA那个需要返回所有选择的CSA的列表并进行On-fly选中间的切片
     # TE那个需要返回所有的Timepoint的列表并进行On-fly选中间的切片
     # x,y,z: img, scores, path
@@ -37,8 +37,11 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
 
     # create results dict for csv file
     res_head= ['ID', 'ScanDatum', 'ID_Timepoint']
-    res_head.extend(return_head(site, feature))
-    res_head.extend(return_head_gt(site, feature))
+    if not score_sum:
+        res_head.extend(return_head(site, feature))
+        res_head.extend(return_head_gt(site, feature))
+    else:
+        res_head.extend(['sums', 'sums_gt'])
     df = pd.DataFrame(index=range(maxidx), columns=res_head)
     idx = 0
     for x, y, z in tqdm(dataloader):
@@ -54,7 +57,7 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
                 df.loc[idx] = row
                 idx += 1
         # 用pd.concat([df, new_row], ignore_index=True)来添加新的一行数据
-    df.to_csv(f'./output/{site}_{feature}_{task}.csv')
+    df.to_csv(f'./output/{site}_{feature}_{task}_sum{score_sum}.csv')
 
     # inference:
     # 直接for x,y,z in Dataloader():
@@ -64,6 +67,6 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
     # 存到一个csv里面
 
 if __name__=='__main__':
-    for site in ['Wrist', 'MCP', 'Foot']:
-        for feature in ['TSY']:
-            main_process('CSA', site, feature, view=['TRA', 'COR'], order=0, score_sum=False, filt=None)
+    for site in ['Wrist']:
+        for feature in ['TSY', 'SYN', 'BME']:
+            main_process('CSA', site, feature, view=['TRA', 'COR'], order=0, score_sum=True, filt=None)
