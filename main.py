@@ -67,6 +67,6 @@ def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
     # 存到一个csv里面
 
 if __name__=='__main__':
-    for site in ['Wrist']:
-        for feature in ['TSY', 'SYN', 'BME']:
-            main_process('CSA', site, feature, view=['TRA', 'COR'], order=0, score_sum=True, filt=None)
+    for site in ['Wrist', 'MCP', 'Foot']:
+        for feature in ['TSY', ]: # 'SYN', 'BME'
+            main_process('TE', site, feature, view=['TRA', 'COR'], order=0, score_sum=False, filt=None)
