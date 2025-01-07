@@ -67,7 +67,7 @@ def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP'
     valdata, _ = getdata(task, site, feature, view, filt, score_sum, path_flag=True)
     valdataloader = DataLoader(dataset=valdata, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    rescale_ratio = {'TSY_COR': 0.193, 'SYN_COR': 0.523, 'BME_TRA': 0.372}
     # Agent.creator_main(valdataloader, 'Default', False, True, None, False, None) # 无法提供路径
     cnt = 0
     for x, y, z in tqdm(valdataloader):
@@ -75,7 +75,7 @@ def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP'
         # y = y.to(device) # [batch, label/scores float]
         # z path/number of the CSA/TE [batch, int]
         cam = Agent.indiv_return(x, 1, None, False)
-        # [batch, 2(Group), 1(category in list), D, L, W]
+        # [batch, 2(Group), 1(category in list), D, L, W
         for b in range(cam.shape[0]):
             cnt+=1
             for g in range(cam.shape[1]):
@@ -83,7 +83,15 @@ def cam_2view_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP'
                 # D:\ESMIRAcode\RAMRISinfer\output\ramris_siteWrist_feaTSY_TRA\cam\fullcam\scalenorm_rmFalse_feall0.05\cate0
                 writter = sitk.ImageFileWriter()
                 writter.SetFileName(save_name)
-                writter.Execute(sitk.GetImageFromArray(cam[b][g][0]))
+                if len(view)<=1:
+                    cur_name = f'{feature}_{view[0]}'
+                    if cur_name in rescale_ratio:
+                        savecam = cam[b][g][0] * rescale_ratio[cur_name]
+                    else:
+                        savecam = cam[b][g][0]
+                else:
+                    savecam = cam[b][g][0]
+                writter.Execute(sitk.GetImageFromArray(savecam))
 
                 origin_save_name = f'./output/{namestr}/cam/fullcam/scalenorm_rmFalse_feall0.05/cate0/ID{z[b]}_view{view[g]}_origin.nii.gz'
                 if not os.path.isfile(origin_save_name):

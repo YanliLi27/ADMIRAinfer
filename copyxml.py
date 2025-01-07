@@ -11,9 +11,9 @@ import os
 # R:\ESMIRA\ESMIRA_Database\LUMC\ESMIRA_patient_ID_CSA\Date\ 下找xml文件
 
 
-def copy_paste(dir:str='R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024',
-               xmldir:str='R:\ESMIRA\ESMIRA_Database\LUMC',
-               newxmldir:str='R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024\xmlfiles'):
+def copy_paste(dir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024\ramris_siteWrist_feaTSY_TRA',
+               xmldir:str=r'R:\ESMIRA\ESMIRA_Database\LUMC',
+               newxmldir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024\xmlfiles'):
     # dir: R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024
     if not os.path.exists(newxmldir):
         os.makedirs(newxmldir)
@@ -33,9 +33,11 @@ def copy_paste(dir:str='R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli
         xmlfile = xmlfilelist[0]  #  ESMIRA-LUMC-Csa839_CSA-20210428-RAMRIS.xml
         absxmlfile = os.path.join(xmlpath, xmlfile)  
         # 'R:\ESMIRA\ESMIRA_Database\LUMC\ESMIRA_patient_{id}_CSA\{date}' + 'ESMIRA-LUMC-Csa839_CSA-20210428-RAMRIS.xml'
+        assert os.path.exists(absxmlfile)
     # 复制到文件下
         newxmlfile:str = os.path.join(newxmldir, f'ID{id}_{date}_RAMRIS.xml')
         # 'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024\xmlfiles' + f'ID{id}_{date}_RAMRIS.xml'
         shutil.copyfile(absxmlfile, newxmlfile)
 
 
+copy_paste()
