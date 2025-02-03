@@ -73,14 +73,14 @@ class CLIPDataset3D(data.Dataset):
 
             # for COR，using lower and upper
             if 'CORT1f' in path:
-                data_array = self._itensity_normalize(data_array[lower:upper])
+                data_array = self._intensity_normalize(data_array[lower:upper])
             # for TRA, using step
             elif 'TRAT1f' in path:
                 if data_array.shape[0]//2 >= self.slices:
                     s = slice(0, 2*self.slices, 2)
-                    data_array = self._itensity_normalize(data_array[s])
+                    data_array = self._intensity_normalize(data_array[s])
                 else:
-                    data_array = self._itensity_normalize(data_array[lower:upper])
+                    data_array = self._intensity_normalize(data_array[lower:upper])
             # [5, 512, 512]/[10, 512, 512]
             if data_array.shape != (self.slices, 512, 512):
                 if data_array.shape == (self.slices, 256, 256):
@@ -99,14 +99,14 @@ class CLIPDataset3D(data.Dataset):
             path, _ = indiv_path.split(']')  # 'subdir\names.mha', 'cs'
             data_mha = sitk.ReadImage(path)
             data_array = sitk.GetArrayFromImage(data_mha)
-            data_array = self._itensity_normalize(data_array)  # [20, 512, 512]
+            data_array = self._intensity_normalize(data_array)  # [20, 512, 512]
             if data_array.shape != (20, 512, 512):
                 data_array = resize(data_array, (20, 512, 512), preserve_range=True)  # preserve_range: no normalization      
             data_matrix.append(data_array.astype(np.float32))
         return data_matrix  # [N, 20, 512, 512]
 
 
-    def _itensity_normalize(self, volume: np.array):
+    def _intensity_normalize(self, volume: np.array):
         """
         normalize the itensity of a volume based on the mean and std of nonzeor region
         inputs:
