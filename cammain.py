@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 import pandas as pd
 import torch
 import os
@@ -13,12 +13,12 @@ from utils.get_head import return_head, return_head_gt
 from torch.utils.data import DataLoader
 
 def cam_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
-                 feature:Literal['TSY','SYN','BME'], order:int=0, 
+                 feature:Literal['TSY','SYN','BME'], view:Optional[List[str]]=['TRA', 'COR'], 
                  score_sum:bool=False, filt:Optional[list]=None):
     
     # 模型本身和权重都需要site feature
-    model = getmodel(site, feature, score_sum)  # DONE!
-    model = getweight(model, site, feature, score_sum, view=None, order=0)  # DONE!
+    model = getmodel(site, feature, view, score_sum)  # DONE!
+    model = getweight(model, site, feature, score_sum, view=view, order=0)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     target_layer = [model.features[-1]]
     # 数据读取需要task, site, feature
@@ -87,4 +87,4 @@ def cam_main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot
 if __name__=='__main__':
     for site in ['Wrist']: #, 'MCP', 'Foot']:
         for feature in ['TSY','SYN','BME']:
-            cam_main_process('CSA', site, feature, 0, True)
+            cam_main_process('CSA', site, feature, ['TRA'], True)

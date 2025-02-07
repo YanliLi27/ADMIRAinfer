@@ -77,10 +77,11 @@ class CLIPDataset3D(data.Dataset):
             # for TRA, using step
             elif 'TRAT1f' in path:
                 if data_array.shape[0]//2 >= self.slices:
-                    s = slice(0, 2*self.slices, 2)
+                    center = data_array.shape[0]//2
+                    s = slice(center-self.slices, center+self.slices, 2)
                     data_array = self._itensity_normalize(data_array[s])
                 else:
-                    data_array = self._itensity_normalize(data_array[lower:upper])
+                    data_array = self._itensity_normalize(data_array[-7:])
             # [5, 512, 512]/[10, 512, 512]
             if data_array.shape != (self.slices, 512, 512):
                 if data_array.shape == (self.slices, 256, 256):
