@@ -78,7 +78,7 @@ class MultiGUI4DL:
     def _load_model(self, model_path):
         """ 加载 Pytorch/ONNX 模型 """
         if os.path.exists(model_path):
-            if ".onnx" in model_path: return ort.InferenceSession(model_path, providers=['CUDAExecutionProvider'])
+            if ".onnx" in model_path: return ort.InferenceSession(model_path, providers=['CPUExecutionProvider']) # providers=['CUDAExecutionProvider'])
             else: raise NotImplementedError("other types of deployment not implemented")
         raise AttributeError(f"{model_path} not exists!")
     
