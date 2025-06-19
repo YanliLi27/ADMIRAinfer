@@ -14,8 +14,8 @@
 
 ## Table of contents
 * [Library overview](#library-overview)
-* [Getting started](#getting-started)
-* [GUI interface](#gui-interface)
+* [Getting started with python scripts](#getting-started)
+* [Getting started with GUI interface](#gui-interface)
 * [Agggregation, combined with segmentation](#Aggregation)
 
 
