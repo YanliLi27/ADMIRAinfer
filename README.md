@@ -5,16 +5,17 @@
 <p align="center">
   PyTorch
 <p align="center">
-  > Input support: 2D, 3D MRI images (wrist, MCP, MTP joints), Outputs: inflammation scores for (teno-)synovitis and bone marrow edema (BME), 
-  > Other Outputs: heatmaps (saliency maps), population-level analysis on the contribution of each anatomical structure to outputs.
-
+<ul>
+  <li> Input support: 2D, 3D MRI images (wrist, MCP, MTP joints), Outputs: inflammation scores for (teno-)synovitis and bone marrow edema (BME), </li>
+  <li> Other Outputs: heatmaps (saliency maps), population-level analysis on the contribution of each anatomical structure to outputs.</li>
+</ul>
 <!--[Shortcut to arxiv draft](https://arxiv.org/abs/2407.01142) -->
 
 
 ## Table of contents
 * [Library overview](#library-overview)
-* [Getting started](#getting-started)
-* [GUI interface](#gui-interface)
+* [Getting started with python scripts](#getting-started)
+* [Getting started with GUI interface](#gui-interface)
 * [Agggregation, combined with segmentation](#Aggregation)
 
 
