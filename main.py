@@ -1,3 +1,6 @@
+# for ADMIRA inference and save to csv
+
+
 # model读取可以采用原本的读取改动一下，把训练好的结果放在trained_weights
 # 数据读取要采用新的读取：
 # 首先重新获得需要计算的central slice，是否类似ACAM一样重新保存？

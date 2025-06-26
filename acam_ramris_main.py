@@ -1,3 +1,6 @@
+# for cam aggregation
+
+
 from seg_components import model_seg_find, data_process, segcor, segtra
 from typing import Literal, Union, Optional, List
 from datasets.get_data import getdata
