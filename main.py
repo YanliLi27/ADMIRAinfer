@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 def main_process(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'],
                  feature:Literal['TSY','SYN','BME'], 
-                 view:Optional[List[str]]=['TRA', 'COR'],
+                 view:List[str]=['TRA', 'COR'],
                  order:int=0, score_sum:bool=False, filt:Optional[list]=None):
     # 模型本身和权重都需要site feature
     model = getmodel(site, feature, view, score_sum)  # DONE!

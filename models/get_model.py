@@ -6,7 +6,7 @@ from .csv3d import make_csv3dmodel
 
 def getmodel(site:Literal['Wrist','MCP','Foot'], 
              feature:Literal['TSY','SYN','BME'],
-             view:Optional[List[str]]=['TRA', 'COR'],
+             view:List[str]=['TRA', 'COR'],
              score_sum:bool=False):
     out_ch = 0
     if score_sum:
