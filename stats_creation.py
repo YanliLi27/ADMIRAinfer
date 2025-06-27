@@ -37,7 +37,7 @@ def main_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', 'MCP', 
     # obtain data
     # 数据读取需要task, site, feature
     # 数据返回应该是 img, scores, path (id, date)
-    data, maxidx = getdata_ult(task, site, feature, view, filt, score_sum, path_flag=True)
+    data, maxidx = getdata_ult(task, site, feature, view, filt, score_sum, order, True)
     # CSA那个需要返回所有选择的CSA的列表并进行On-fly选中间的切片
     # TE那个需要返回所有的Timepoint的列表并进行On-fly选中间的切片
     # x,y,z: img, scores, path
@@ -100,7 +100,7 @@ def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'],
         else: df = pd.merge(df, df_cur, on='ID')
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/2featuremerged_{site}_{feature}_{task}_sum{score_sum}.csv')
+    df.to_csv(f'./output/2featuremerged_{site}_{task}_sum{score_sum}.csv')
     return df
 
 
@@ -114,15 +114,13 @@ def merge_site_process(task:Literal['TE', 'CSA', 'ALL'],
         else: df = pd.merge(df, df_cur, on='ID')
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/3sitemerged_{site}_{feature}_{task}_sum{score_sum}.csv')
+    df.to_csv(f'./output/3sitemerged_{task}_sum{score_sum}.csv')
     return df
 
 
 if __name__=='__main__':
-    for site in ['Wrist', 'MCP', 'Foot']:
-        for feature in ['TSY', 'SYN', 'BME']:
-            for ss in [True, False]:
-                merge_process('TE', site, feature, view=['TRA', 'COR'], score_sum=ss, filt=None)
+    for ss in [True, False]:
+        merge_site_process('TE', view=['TRA', 'COR'], score_sum=ss, filt=None)
 
 
 
