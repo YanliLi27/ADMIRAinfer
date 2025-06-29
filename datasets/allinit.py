@@ -61,7 +61,7 @@ def process_score(x):
     raise ValueError(f'x: {x}')
 
 
-def get_id_from_ramris(ramris_root:str) -> pd.DataFrame:
+def get_id_from_ramris(ramris_root:str, prefix:str) -> pd.DataFrame:
     # CSANUMM 那一列需要左边加Csa, 并且zfill到3
     df:pd.DataFrame = pd.read_csv(ramris_root, sep=';')
     expected_heads = get_score_head(return_all=True)
@@ -70,17 +70,23 @@ def get_id_from_ramris(ramris_root:str) -> pd.DataFrame:
         df[head1] = df[head1].apply(lambda x: process_score(x))
         df[head2] = df[head2].apply(lambda x: process_score(x))
         df[head] = df[[head1, head2]].apply(lambda row: np.nanmean(row) if not all(np.isnan(row)) else np.nan, axis=1)
-    df = df.rename(columns={'CSANUMM': 'ID'})
-    df['ID'] = df['ID'].apply(lambda x: 'Csa' + str(x).zfill(3))
+    df = df.rename(columns={prefix: 'ID'})
+    replace:str = 'Csa' if 'CSA' in prefix else 'Arth'
+    replace:str = 'Atlas' if 'Atlas' in prefix else 'Arth'
+    n:int = 4 if 'EAC' in prefix else 3
+    df['ID'] = df['ID'].apply(lambda x: replace + str(x).zfill(n))
     target_column = ['ID'] + expected_heads
     return df[target_column].copy()
 
 
 def obtain_id(name:str):
-    # EAC:
-    # CSA:
-    # ATL:
-    return name 
+    # ['CSA_Wrist_TRA\\ESMIRA-LUMC-Csa649_CSA-20180606-RightWrist_PostTRAT1f_0.mha:0to5plus0to7'，
+    #         'CSA_Wrist_COR\\ESMIRA-LUMC-Csa649_CSA-20180606-RightWrist_PostCORT1f_0.mha:8to13plus8to15']
+    # EAC:  EAC_Wrist_TRA\\ESMIRA-LUMC-Arth4443_EAC-20180103-RightWrist_PostTRAT1f_1.mha:0to5plus0to7
+    # CSA:  CSA_Wrist_TRA\\ESMIRA-LUMC-Csa649_CSA-20180606-RightWrist_PostTRAT1f_0.mha:0to5plus0to7
+    # ATL:  ATL_Wrist_TRA\\ESMIRA-LUMC-Atlas156_ATL-20140625-RightWrist_PostTRAT1f.mha:0to5plus0to7
+    item = name.split('-')[2]
+    return item
 
 
 def pkl_reader(site:Literal['Wrist','MCP','Foot']='Wrist', 
@@ -106,11 +112,17 @@ def pkl_reader(site:Literal['Wrist','MCP','Foot']='Wrist',
 
 
 def all_initialization(mri_root:str=r'E:\ESMIRA_RAprediction\Export20Jun22', 
-                       ramris_root:List[str]=[r'D:\ESMIRA\SPSS data\5. CSA_T1_MRI_scores_SPSS.csv'],
+                       ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
                        site:Literal['Wrist','MCP','Foot']='Wrist', 
                        feature:Literal['TSY','SYN','BME']='TSY',
                        order:int=0,
                        sum_score:bool=True) ->pd.DataFrame:
+    path_zoo = {'CSA':r'D:\ESMIRA\SPSS data\5. CSA_T1_MRI_scores_SPSS.csv',  # CSANUMM
+                  'EAC':r'D:\ESMIRA\SPSS data\1. EAC baseline.csv',  # EACNUMM
+                  'ATL':r'D:\ESMIRA\SPSS data\3. Atlas.csv'}  # AtlasNR  1,2...
+    prefix_zoo = {'CSA': 'CSANUMM',  # CSANUMM
+                  'EAC': 'EACNUMM',  # EACNUMM
+                  'ATL': 'AtlasNR'}  # AtlasNR  1,2...
     if not os.path.exists(r'./datasets/all_mri_init.csv'): 
         mri_id_path:pd.DataFrame = get_id_from_mri(mri_root)
         mri_id_path.to_csv(r'./datasets/all_mri_init.csv')
@@ -120,8 +132,10 @@ def all_initialization(mri_root:str=r'E:\ESMIRA_RAprediction\Export20Jun22',
     # ID (Csa003), DATE(20202020), ID_DATE(ID;DATE), Site_View * 6 (abs_path;NtoN+7)
     if not os.path.exists(r'./datasets/all_ramris_init.csv'): 
         ramris_id_score:pd.DataFrame = pd.DataFrame()
-        for ramris_root_path in ramris_root:
-            score:pd.DataFrame = get_id_from_ramris(ramris_root_path)
+        for root in ramris_root:
+            ramris_root_path = path_zoo[root]
+            prefix = prefix_zoo[root]
+            score:pd.DataFrame = get_id_from_ramris(ramris_root_path, prefix)
             ramris_id_score = pd.concat([ramris_id_score, score])
         ramris_id_score.to_csv(r'./datasets/all_ramris_init.csv')
     else:
