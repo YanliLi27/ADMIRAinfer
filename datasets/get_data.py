@@ -40,11 +40,11 @@ def getdata_ult(task:Literal['CSA', 'TE', 'ALL'], site:Literal['Wrist','MCP','Fo
         assert task!='ALL'
         return getdata(task, site, feature, view, filt, score_sum, path_flag)
 
-    path_default = {'ALL':f'./dataset/all/all_{site}_{feature}_{task}_sum{score_sum}_{order}.csv'}
+    path_default = {'ALL':f'./datasets/all/all_{site}_{feature}_{task}_sum{score_sum}_{order}.csv'}
     paths = path_default[task]
     if not os.path.exists(os.path.dirname(paths)): os.makedirs(os.path.dirname(paths))
     if not os.path.exists(paths):
-        df:pd.DataFrame = all_initialization(site=site, feature=feature, order=order)
+        df:pd.DataFrame = all_initialization(site=site, feature=feature, order=order, sum_score=score_sum)
         df.to_csv(paths)
     else:
         df:pd.DataFrame = pd.read_csv(paths)

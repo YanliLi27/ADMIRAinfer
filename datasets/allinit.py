@@ -71,9 +71,11 @@ def get_id_from_ramris(ramris_root:str, prefix:str) -> pd.DataFrame:
         df[head2] = df[head2].apply(lambda x: process_score(x))
         df[head] = df[[head1, head2]].apply(lambda row: np.nanmean(row) if not all(np.isnan(row)) else np.nan, axis=1)
     df = df.rename(columns={prefix: 'ID'})
-    replace:str = 'Csa' if 'CSA' in prefix else 'Arth'
-    replace:str = 'Atlas' if 'Atlas' in prefix else 'Arth'
-    n:int = 4 if 'EAC' in prefix else 3
+    if 'CSA' in prefix: replace:str = 'Csa'
+    elif 'EAC' in prefix: replace:str = 'Arth'
+    elif 'Atlas' in prefix: replace:str = 'Atlas'
+    else: raise AttributeError(f'{prefix}')
+    n:int = 4 if 'Arth' in prefix else 3
     df['ID'] = df['ID'].apply(lambda x: replace + str(x).zfill(n))
     target_column = ['ID'] + expected_heads
     return df[target_column].copy()
@@ -86,6 +88,7 @@ def obtain_id(name:str):
     # CSA:  CSA_Wrist_TRA\\ESMIRA-LUMC-Csa649_CSA-20180606-RightWrist_PostTRAT1f_0.mha:0to5plus0to7
     # ATL:  ATL_Wrist_TRA\\ESMIRA-LUMC-Atlas156_ATL-20140625-RightWrist_PostTRAT1f.mha:0to5plus0to7
     item = name.split('-')[2]
+    item = item.split('_')[0]
     return item
 
 
