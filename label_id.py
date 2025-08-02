@@ -4,7 +4,7 @@ import pandas as pd
 
 
 if __name__=='__main__':
-    csvpath = f'./output/all/3sitemerged_ALL_sumFalse.csv'
+    csvpath = f'./output/all/3sitemerged_ALL_sumTrue.csv'
     campath = f'./output/all/cam_use.xlsx'
     holdoutpath = f'./output/all/holdout_names.xlsx'
 
@@ -19,4 +19,4 @@ if __name__=='__main__':
     print(f"cam_use=1 的数量: {df['cam_use'].sum()}")
     print(f"holdout=1 的数量: {df['holdout'].sum()}")
     # 保存结果（可选）
-    df.to_csv('./output/all/3sitemerged_ALL_sumFalse_tagged.csv', index=False)
+    df.to_csv('./output/all/3sitemerged_ALL_sumTrue_tagged.csv', index=False)

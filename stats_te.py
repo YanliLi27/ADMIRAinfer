@@ -66,7 +66,7 @@ def main_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', 'MCP', 
                 df.loc[idx] = row
                 idx += 1
         # 用pd.concat([df, new_row], ignore_index=True)来添加新的一行数据
-    df.to_csv(f'./output/all/0unmerged_{site}_{feature}_{task}_sum{score_sum}_{order}.csv')
+    df.to_csv(f'./output/all_te/0unmerged_{site}_{feature}_{task}_sum{score_sum}_{order}.csv')
     return df
     # inference:
     # 直接for x,y,z in Dataloader():
@@ -86,7 +86,7 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
         else: df = pd.concat([df, df_cur])
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/all/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv')
+    df.to_csv(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv')
     return df
 
 
@@ -96,10 +96,10 @@ def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'],
                           score_sum:bool=False, filt:Optional[list]=None):
     df = None
     for feature in ['TSY','SYN','BME']:
-        if not os.path.exists(f'./output/all/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv'):
+        if not os.path.exists(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv'):
             df_cur = merge_fold_process(task, site, feature, view, score_sum, filt)
         else:
-            df_cur = pd.read_csv(f'./output/all/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv', index_col=0)
+            df_cur = pd.read_csv(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv', index_col=0)
         if score_sum:
             df_cur = df_cur.rename(columns={'sums': f'{site}_{feature}_pred', 'sums_gt': f'{site}_{feature}_gt'})
             # df_cur = df_cur.sort_values(by='ID').reset_index(drop=True)
@@ -107,7 +107,7 @@ def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'],
         else: df = pd.merge(df, df_cur, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='inner')
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/all/2featuremerged_{site}_{task}_sum{score_sum}.csv')
+    df.to_csv(f'./output/all_te/2featuremerged_{site}_{task}_sum{score_sum}.csv')
     return df
 
 
@@ -116,21 +116,21 @@ def merge_site_process(task:Literal['TE', 'CSA', 'ALL'],
                        score_sum:bool=False, filt:Optional[list]=None):
     df = None
     for site in ['Wrist', 'MCP', 'Foot']:
-        if not os.path.exists(f'./output/all/2featuremerged_{site}_{task}_sum{score_sum}.csv'):
+        if not os.path.exists(f'./output/all_te/2featuremerged_{site}_{task}_sum{score_sum}.csv'):
             df_cur = merge_feature_process(task, site, view, score_sum, filt)
         else:
-            df_cur = pd.read_csv(f'./output/all/2featuremerged_{site}_{task}_sum{score_sum}.csv', index_col=0)
+            df_cur = pd.read_csv(f'./output/all_te/2featuremerged_{site}_{task}_sum{score_sum}.csv', index_col=0)
         if df is None: df = df_cur
         else: df = pd.merge(df, df_cur, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='outer')
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/all/3sitemerged_{task}_sum{score_sum}.csv')
+    df.to_csv(f'./output/all_te/3sitemerged_{task}_sum{score_sum}.csv')
     return df
 
 
 if __name__=='__main__':
     for ss in [True]:  # True, 
-        merge_site_process('ALL', view=['TRA', 'COR'], score_sum=ss, filt=None)
+        merge_site_process('TE', view=['TRA', 'COR'], score_sum=ss, filt=None)
 
 
 

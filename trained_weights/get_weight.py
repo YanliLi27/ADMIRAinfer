@@ -34,9 +34,9 @@ def getweight_outside(model,
     if not view: view = ['COR'] if feature in ['SYN', 'BME'] else ['TRA']
     ss = f'sum{sumscore}'
     if len(view)<2:
-        path = f'{feature}__{site}_{view}_fold{order}.model'
+        path = f'{feature}__{site}_{view}_fold{order}.model' if not sumscore else f'{feature}__{site}_{view}_fold{order}Sum.model'
     else:
-        path = f'{feature}__{site}_2dirc_fold{order}.model'
+        path = f'{feature}__{site}_2dirc_fold{order}.model' if not sumscore else f'{feature}__{site}_2dirc_fold{order}Sum.model'
     path = os.path.join(saving_dir, ss, path)
     if os.path.isfile(path):
         checkpoint = torch.load(path)
