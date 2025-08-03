@@ -86,8 +86,10 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
         else: df = pd.concat([df, df_cur])
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv')
-    return df
+    column_list = list(df.columns.values[3:])
+    df_res = df.groupby(['ID', 'ScanDatum', 'ID_Timepoint'], as_index=False)[column_list].mean()
+    df_res.to_csv(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv')
+    return df_res
 
 
 def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'], 
@@ -129,7 +131,7 @@ def merge_site_process(task:Literal['TE', 'CSA', 'ALL'],
 
 
 if __name__=='__main__':
-    for ss in [True]:  # True, 
+    for ss in [False]:  # True, 
         merge_site_process('TE', view=['TRA', 'COR'], score_sum=ss, filt=None)
 
 

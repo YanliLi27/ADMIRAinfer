@@ -32,6 +32,7 @@ def get_id_from_mri(mri_root:str, groups:list=['TRT', 'PLA'], sites:list=['Wrist
         dates = os.listdir(os.path.join(mri_root, patient))
         # \LeftWrist_PostTRAT1f\images\itk\AIMIRA-LUMC-Treat0001_PLA-20150319-LeftWrist_PostTRAT1f.mha
         for date in dates:
+            if not date.isdigit(): continue
             cur_id_date = f'{cur_id};{date}'  # Treat0001;20150319
             data[cur_id_date] = get_dict()
             # get the paths in current folder
