@@ -129,7 +129,7 @@ def merge_site_process(task:Literal['TE', 'CSA', 'ALL'],
 
 
 if __name__=='__main__':
-    for ss in [True]:  # True, 
+    for ss in [True, False]:  # True, 
         merge_site_process('ALL', view=['TRA', 'COR'], score_sum=ss, filt=None)
 
 

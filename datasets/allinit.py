@@ -87,9 +87,9 @@ def obtain_id(name:str):
     # EAC:  EAC_Wrist_TRA\\ESMIRA-LUMC-Arth4443_EAC-20180103-RightWrist_PostTRAT1f_1.mha:0to5plus0to7
     # CSA:  CSA_Wrist_TRA\\ESMIRA-LUMC-Csa649_CSA-20180606-RightWrist_PostTRAT1f_0.mha:0to5plus0to7
     # ATL:  ATL_Wrist_TRA\\ESMIRA-LUMC-Atlas156_ATL-20140625-RightWrist_PostTRAT1f.mha:0to5plus0to7
-    item = name.split('-')[2]
+    item = name.split('-')[2]  # Arth4443_EAC \Csa649_CSA \Atlas156_ATL
     item = item.split('_')[0]
-    return item
+    return item  # Arth4443  Csa649   Atlas156
 
 
 def pkl_reader(site:Literal['Wrist','MCP','Foot']='Wrist', 
@@ -112,6 +112,38 @@ def pkl_reader(site:Literal['Wrist','MCP','Foot']='Wrist',
     # get id
     data_list:list = [obtain_id(item) for item in data_list]
     return data_list
+
+
+def reverse_pkl_reader(site:Literal['Wrist','MCP','Foot']='Wrist', 
+               feature:Literal['TSY','SYN','BME']='TSY',
+               order:int=0,
+               sum_score:bool=True,
+               full_id:np.ndarray=None):
+    # 用pkl_reader把它们转化为csv数据，然后用和此处的dataset相同的形式进行保存
+    # 【un22_EAC_CSA_ATL__{site}_2dirc_1.pkl】  
+    # 里面存的是 [5split  *[id[path1:cs, path2:cs, path3:cs, ...]]]的list
+    # 【un22_EAC_CSA_ATL__{site}_{feature}_2reader_1__sc.pkl 
+    # 里面存的是对应BIO的 [5split  *[id[site1_array, site2_array], id[[site1_array, site2_array]]
+    assert full_id is not None
+    path:str = f'sum{sum_score}/un22_EAC_CSA_ATL__{site}_2dirc_1.pkl'
+    pkl_dir:str = r'E:\ADMIRA_models\split'
+    pkl_path:str = os.path.join(pkl_dir, path)
+    with open(pkl_path, 'rb') as f:
+        data = pickle.load(f)
+    data_revsere:list = []
+    for idx in range(5):
+        if idx!=order: data_revsere.extend(data[idx])
+    data_split:np.ndarray = np.asarray(data_revsere)
+    # [id[path1:cs, path2:cs, path3:cs, ...]] -> np.ndarray
+    data_list:list = list(data_split[:, 0])  # [id1-path1:cs, id2-path1:cs, ...]
+    # get id
+    data_list:list = [str(obtain_id(item)) for item in data_list]
+    
+    full_id = np.asarray(full_id, dtype=str)
+    # reverse filt
+    filtered_list = list(full_id[~np.isin(full_id, data_list)])
+
+    return filtered_list
 
 
 def all_initialization(mri_root:str=r'E:\ESMIRA_RAprediction\Export20Jun22', 
@@ -150,6 +182,10 @@ def all_initialization(mri_root:str=r'E:\ESMIRA_RAprediction\Export20Jun22',
     result['DATE'] = result['DATE'].replace(0, np.nan)
 
     # 用pkl的数据进行筛选
-    fold_id:list = pkl_reader(site, feature, order, sum_score)
+    if order!=0:
+        fold_id:list = pkl_reader(site, feature, order, sum_score)
+    else:
+        fold_id:list = reverse_pkl_reader(site, feature, order, sum_score, result['ID'].values)
     result:pd.DataFrame = result[result['ID'].isin(fold_id)]
+    # result.to_csv(r'./datasets/all_init.csv')
     return result
