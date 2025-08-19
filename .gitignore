@@ -1,6 +1,9 @@
 /datasets/csa_init.csv
 /datasets/csa_mri_init.csv
 /datasets/csa_ramris_init.csv
+/datasets/eac_init.csv
+/datasets/eac_mri_init.csv
+/datasets/eac_ramris_init.csv
 /datasets/te_init.csv
 /datasets/te_mri_init.csv
 /datasets/te_ramris_init.csv

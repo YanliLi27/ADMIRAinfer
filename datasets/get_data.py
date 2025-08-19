@@ -3,6 +3,7 @@ import pandas as pd
 from typing import Literal, Optional
 from .csainit import csa_initialization
 from .teinit import te_initialization
+from .eacinit import eac_initialization
 from .allinit import all_initialization
 from .headdict import get_score_head
 from .dataset import CLIPDataset3D
@@ -29,6 +30,35 @@ def getdata(task:Literal['CSA', 'TE'], site:Literal['Wrist','MCP','Foot'], featu
     target:pd.DataFrame = df[pre]    # ID, DA.dropna()TE, ID_DATE, SITE_TRA, SITE_COR   
     # 筛除某些部分
     if filt: target = target[target['ID'].isin(filt)]
+    target = target.dropna()
+
+    return CLIPDataset3D(target, path_column, score_column, score_sum, path_flag), target.shape[0]
+
+
+def getdata_eac(task:Literal['EAC'], site:Literal['Wrist','MCP','Foot'], feature:Literal['TSY','SYN','BME'], view:list[str]=['TRA', 'COR'], 
+            filt:Optional[list]=None, score_sum:bool=False, path_flag:bool=True):
+    path_default = {'EAC':r'./datasets/eac_init.csv'}
+    paths = path_default[task]
+
+    if not os.path.exists(paths):
+        df:pd.DataFrame = eac_initialization()
+        df.to_csv(paths)
+    else:
+        df:pd.DataFrame = pd.read_csv(paths)
+    if len(view)>1:
+        path_column = [col for col in df.columns if f'{site}_' in col]
+    else:
+        path_column = [col for col in df.columns if f'{site}_{view[0]}' in col]
+    pre = ['ID', 'DATE', 'ID_DATE']
+    pre.extend(path_column)
+    score_column = get_score_head(site, feature)
+    pre.extend(score_column)
+    target:pd.DataFrame = df[pre]    # ID, DA.dropna()TE, ID_DATE, SITE_TRA, SITE_COR   
+    # 筛除某些部分
+    if filt: 
+        target = target[target['ID'].isin(filt)]
+        print(len(filt))
+        print(target.shape[0])
     target = target.dropna()
 
     return CLIPDataset3D(target, path_column, score_column, score_sum, path_flag), target.shape[0]
