@@ -149,11 +149,16 @@ def read_single_csv(ramris_root:str, prefix:str):
     processed = {}
     for head in expected_heads:
         head1, head2 = head+'.1', head+'.2'
-        processed[head1] = df[head1].apply(process_score)
-        processed[head2] = df[head2].apply(process_score)
-        processed[head] = np.nanmean(
-            [processed[head1], processed[head2]], axis=0
-        )
+        if head1 in df.columns:
+            processed[head1] = df[head1].apply(process_score)
+            processed[head2] = df[head2].apply(process_score)
+            processed[head] = np.nanmean(
+                [processed[head1], processed[head2]], axis=0
+            )
+        elif head in df.columns:
+            processed[head] = df[head]
+        else:
+            raise KeyError(f'missing head {head}')
     for col, series in processed.items():
         df[col] = series
 
