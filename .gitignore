@@ -10,8 +10,8 @@
 /datasets/all_init.csv
 /datasets/all_mri_init.csv
 /datasets/all_ramris_init.csv
-/datasets/all
-/datasets/all_previous
+/datasets/intermediate
+
 /trained_weights/Wrist_BME_COR_sumTrue_0.model
 /trained_weights/Wrist_SYN_COR_sumTrue_0.model
 /trained_weights/Wrist_TSY_TRA_sumTrue_0.model

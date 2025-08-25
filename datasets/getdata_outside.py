@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import csv
 import pandas as pd
 from typing import Literal, Optional, List, Union
 from tqdm import tqdm
@@ -23,13 +24,15 @@ def get_dict() -> dict:
     return this_dict
 
 
-def get_id_from_mri(mri_root:str, groups:list=['EAC','CSA','ATL'], sites:list=['Wrist', 'MCP', 'Foot'], views:list=['TRA', 'COR'],
+def get_id_from_mri(groups:list=['EAC','CSA','ATL'], sites:list=['Wrist   ', 'MCP', 'Foot'], views:list=['TRA', 'COR'],
                     mode:Literal['Offline', 'Online']='Offline') -> pd.DataFrame:
     if mode == 'Offline': 
-        assert mri_root == r'E:\ESMIRA_RAprediction\Export20Jun22'
+        mri_root = r'E:\ESMIRA_RAprediction\Export20Jun22'
+        print(f'Offline loading MRIs from {mri_root}, print from getdata_outside.py')
         return get_id_from_mri_offline(mri_root, groups, sites, views)
     elif mode == 'Online': 
-        assert mri_root == r'R:\ESMIRA\ESMIRA_Database\LUMC'
+        mri_root = r'R:\ESMIRA\ESMIRA_Database\LUMC'
+        print(f'Online loading MRIs from {mri_root}, print from getdata_outside.py')
         return get_id_from_mri_online(mri_root, groups, sites, views)
     else: raise AttributeError(f'mode {mode} not supported')
 
@@ -118,17 +121,42 @@ def process_score(x):
         return int(x) if x.isdigit() and int(x) <= 10 and int(x)>=0 else np.nan
     elif isinstance(x, int):
         return int(x) if int(x) <= 10 and int(x)>=0 else np.nan
-    raise ValueError(f'x: {x}')
+    elif isinstance(x, float):
+        return int(x) if (not np.isnan(x) and int(x) <= 10 and int(x)>=0) else np.nan
+    raise ValueError(f'x: {x}, type: {type(x)}')
+
+
+def auto_delimiter(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        sample = f.read(2048)  # 读一点样本
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=[',', ';'])
+            delimiter = dialect.delimiter
+        except csv.Error:
+            # Sniffer失败时，手动兜底
+            comma_count = sample.count(',')
+            semicolon_count = sample.count(';')
+            delimiter = ',' if comma_count >= semicolon_count else ';'
+    print(f"Detect the sep: '{delimiter}'")
+    return delimiter
 
 
 def read_single_csv(ramris_root:str, prefix:str):
-    df:pd.DataFrame = pd.read_csv(ramris_root, sep=';')
-    expected_heads = get_score_head(return_all=True)
+    delimiter = auto_delimiter(ramris_root)
+    df:pd.DataFrame = pd.read_csv(ramris_root, sep=delimiter)
+    expected_heads = get_score_head(return_all=True)    
+
+    processed = {}
     for head in expected_heads:
         head1, head2 = head+'.1', head+'.2'
-        df[head1] = df[head1].apply(lambda x: process_score(x))
-        df[head2] = df[head2].apply(lambda x: process_score(x))
-        df[head] = df[[head1, head2]].apply(lambda row: np.nanmean(row) if not all(np.isnan(row)) else np.nan, axis=1)
+        processed[head1] = df[head1].apply(process_score)
+        processed[head2] = df[head2].apply(process_score)
+        processed[head] = np.nanmean(
+            [processed[head1], processed[head2]], axis=0
+        )
+    for col, series in processed.items():
+        df[col] = series
+
     df = df.rename(columns={prefix: 'ID'})
     if 'CSA' in prefix: replace:str = 'Csa'
     elif 'EAC' in prefix: replace:str = 'Arth'
@@ -216,40 +244,39 @@ def reverse_pkl_reader(site:Literal['Wrist','MCP','Foot']='Wrist',
     return filtered_list
 
 
-def data_initialization(mri_root:str=r'E:\ESMIRA_RAprediction\Export20Jun22', 
-                       ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
+def data_initialization(ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
                        loading_mode:Literal['Offline', 'Online']='Offline') ->pd.DataFrame:
     if loading_mode=='Offline':
         path_zoo = {'CSA':r'D:\ESMIRA\SPSS data\5. CSA_T1_MRI_scores_SPSS.csv',  # CSANUMM
                     'EAC':r'D:\ESMIRA\SPSS data\1. EAC baseline.csv',  # EACNUMM
                     'ATL':r'D:\ESMIRA\SPSS data\3. Atlas.csv'}  # AtlasNR  1,2...
     elif loading_mode=='Online':
-        path_zoo = {'CSA':[r'R:\ESMIRA\ESMIRA_Scores\SPSS data\5. CSA_T1_MRI_scores_SPSS.csv',
+        path_zoo = {'CSA':[r'R:\ESMIRA\ESMIRA_Scores\SPSS data\5. CSA_T1_MRI_scores_SPSS.csv',  # CSANUMM
                            r'R:\ESMIRA\ESMIRA_Scores\SPSS data\6. CSA_T2_MRI_scores_SPSS.csv',
-                           r'R:\ESMIRA\ESMIRA_Scores\SPSS data\7. CSA_T4_MRI_scores_SPSS.csv'],  # CSANUMM
+                           r'R:\ESMIRA\ESMIRA_Scores\SPSS data\7. CSA_T4 MRI_scores_SPSS.csv'],  # why no _ between T4 MRI
                     'EAC':[r'R:\ESMIRA\ESMIRA_Scores\SPSS data\1. EAC baseline.csv', 
                            r'R:\ESMIRA\ESMIRA_Scores\SPSS data\2. EAC longitudinal.csv'],  # EACNUMM
                     'ATL':r'R:\ESMIRA\ESMIRA_Scores\SPSS data\3. Atlas.csv'}  # AtlasNR  1,2...
     prefix_zoo = {'CSA': 'CSANUMM',  # CSANUMM
                   'EAC': 'EACNUMM',  # EACNUMM
                   'ATL': 'AtlasNR'}  # AtlasNR  1,2...
-    if not os.path.exists(f'./datasets/all_mri_init_{loading_mode}.csv'): 
-        mri_id_path:pd.DataFrame = get_id_from_mri(mri_root, mode=loading_mode)
-        mri_id_path.to_csv(f'./datasets/all_mri_init_{loading_mode}.csv')
+    if not os.path.exists(f'./datasets/intermediate/csv/all_mri_init_{loading_mode}.csv'): 
+        mri_id_path:pd.DataFrame = get_id_from_mri(mode=loading_mode)
+        mri_id_path.to_csv(f'./datasets/intermediate/csv/all_mri_init_{loading_mode}.csv')
     else:
-        mri_id_path = pd.read_csv(f'./datasets/all_mri_init_{loading_mode}.csv')
+        mri_id_path = pd.read_csv(f'./datasets/intermediate/csv/all_mri_init_{loading_mode}.csv')
         mri_id_path['DATE'] = mri_id_path['DATE'].astype(int)
     # ID (Csa003), DATE(20202020), ID_DATE(ID;DATE), Site_View * 6 (abs_path;NtoN+7)
-    if not os.path.exists(f'./datasets/all_ramris_init_{loading_mode}.csv'): 
+    if not os.path.exists(f'./datasets/intermediate/csv/all_ramris_init_{loading_mode}.csv'): 
         ramris_id_score:pd.DataFrame = pd.DataFrame()
         for root in ramris_root:
             ramris_root_path = path_zoo[root]
             prefix = prefix_zoo[root]
             score:pd.DataFrame = get_id_from_ramris(ramris_root_path, prefix)
             ramris_id_score = pd.concat([ramris_id_score, score])
-        ramris_id_score.to_csv(f'./datasets/all_ramris_init_{loading_mode}.csv')
+        ramris_id_score.to_csv(f'./datasets/intermediate/csv/all_ramris_init_{loading_mode}.csv')
     else:
-        ramris_id_score = pd.read_csv(f'./datasets/all_ramris_init_{loading_mode}.csv')
+        ramris_id_score = pd.read_csv(f'./datasets/intermediate/csv/all_ramris_init_{loading_mode}.csv')
     
     # 合并MRI与RAMRIS
     result = pd.merge(mri_id_path, ramris_id_score, on='ID', how='left')
@@ -263,12 +290,12 @@ def data_initialization(mri_root:str=r'E:\ESMIRA_RAprediction\Export20Jun22',
 def getdata(task:Literal['CSA', 'TE', 'ATL', 'EAC', 'ALL'], site:Literal['Wrist','MCP','Foot'], feature:Literal['TSY','SYN','BME'], 
             view:list[str]=['TRA', 'COR'], filt:Optional[list]=None, score_sum:bool=False, order:int=0, 
             loading_mode:Literal['Offline', 'Online']='Offline', path_flag:bool=True):
-    path_default = {'ALL':f'./datasets/all/all_init_{loading_mode}.csv', 
-                    'EAC':f'./datasets/eac/eac_init_{loading_mode}.csv',
-                    'CSA':f'./datasets/csa/csa_init_{loading_mode}.csv', 
-                    'ATL':f'./datasets/atl/atl_init_{loading_mode}.csv',
-                    'TE':f'./datasets/te/te_init_{loading_mode}.csv'}
-    paths = path_default[task] if isinstance(task, Literal['CSA', 'ATL', 'EAC', 'ALL', 'TE']) else f'./datasets/all/all_init_{loading_mode}.csv'
+    path_default = {'ALL':f'./datasets/intermediate/csv/all_init_{loading_mode}.csv', 
+                    'EAC':f'./datasets/intermediate/csv/eac_init_{loading_mode}.csv',
+                    'CSA':f'./datasets/intermediate/csv/csa_init_{loading_mode}.csv', 
+                    'ATL':f'./datasets/intermediate/csv/atl_init_{loading_mode}.csv',
+                    'TE':f'./datasets/intermediate/csv/te_init_{loading_mode}.csv'}
+    paths = path_default[task] if task in ['CSA', 'ATL', 'EAC', 'ALL', 'TE'] else f'./datasets/intermediate/csv/all_init_{loading_mode}.csv'
 
     # ---------------------------- get the selected rows ----------------------------
     if not os.path.exists(paths):
