@@ -30,5 +30,8 @@
 /trained_weights/MCP_TSY_multiview_sumFalse_1.model
 /trained_weights/Foot_TSY_multiview_sumFalse_0.model
 /trained_weights/Foot_TSY_multiview_sumFalse_1.model
+
+/.vscode
+
 /output
 /MIRJIM/model_out
