@@ -168,7 +168,7 @@ def read_single_csv(ramris_root:str, prefix:str):
     elif 'Atlas' in prefix: replace:str = 'Atlas'
     else: raise AttributeError(f'{prefix}')
     n:int = 4 if 'Arth' in prefix else 3
-    df['ID'] = df['ID'].apply(lambda x: replace + str(x).zfill(n))
+    df['ID'] = df['ID'].apply(lambda x: replace + str(int(x)).zfill(n))
     target_column = ['ID'] + expected_heads
     return df[target_column].copy()
 
@@ -284,7 +284,7 @@ def data_initialization(ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
         ramris_id_score = pd.read_csv(f'./datasets/intermediate/csv/all_ramris_init_{loading_mode}.csv')
     
     # 合并MRI与RAMRIS
-    result = pd.merge(mri_id_path, ramris_id_score, on='ID', how='left')
+    result = pd.merge(mri_id_path, ramris_id_score, on=['ID', 'DATE', 'ID_DATE'], how='left')
     result['DATE'] = result['DATE'].fillna(0).astype(int)
     result['DATE'] = result['DATE'].replace(0, np.nan)
 
@@ -311,6 +311,7 @@ def getdata(task:Literal['CSA', 'TE', 'ATL', 'EAC', 'ALL'], site:Literal['Wrist'
 
     # ---------------------------- get the selected rows ----------------------------
     # select certain order group using pickle record
+    print(f'data number before filtering: {df.shape[0]}')
     if order==-1:
         pass
     elif order==0:
@@ -319,17 +320,17 @@ def getdata(task:Literal['CSA', 'TE', 'ATL', 'EAC', 'ALL'], site:Literal['Wrist'
     else:
         fold_id:list = pkl_reader(site, feature, order, score_sum)
         df:pd.DataFrame = df[df['ID'].isin(fold_id)]
-    
+
+    print(f'data number after folding: {df.shape[0]}')
     # exclude by group
     if task in ['CSA', 'EAC', 'ATL', 'TE']:
         short = {'CSA':'Csa', 'EAC':'Arth', 'ATL':'Atlas', 'TE':'Treat'}
         df = df[df['ID'].str.contains(short[task], na=False)]
 
+    print(f'data number after grouping: {df.shape[0]}')
     # exclude through filt []
     if filt: df = df[df['ID'].isin(filt)]
-    df = df.dropna()
-    # filt = ['Csa' + str(x).zfill(3) for x in csa_filt] if task=='CSA' else ['Arth' + str(x).zfill(4) for x in eac_filt]
-    # CsaXXX or ArthXXXX or AtlasXXX or TreatXXXX
+    print(f'data number after list filtering: {df.shape[0]}')
     
     # ---------------------------- get the selected columns ----------------------------
     if len(view)>1:
@@ -342,5 +343,10 @@ def getdata(task:Literal['CSA', 'TE', 'ATL', 'EAC', 'ALL'], site:Literal['Wrist'
     pre.extend(score_column)
     target:pd.DataFrame = df[pre]    # ID, DA.dropna()TE, ID_DATE, SITE_TRA, SITE_COR   
 
+    target = target.dropna() # must be after the column selection
+    # CsaXXX or ArthXXXX or AtlasXXX or TreatXXXX
+    print(f'data number after nan filtering: {target.shape[0]}')
+
+    if df.shape[0]==0: return None, 0
     # ------------------------------------ return dataset ------------------------------------
     return CLIPDataset3D(target, path_column, score_column, score_sum, path_flag), target.shape[0]

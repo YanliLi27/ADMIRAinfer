@@ -24,6 +24,7 @@ def main_process(task:Literal['TE', 'CSA', 'EAC', 'ATL', 'ALL'], site:Literal['W
     # 数据读取需要task, site, feature
     # 数据返回应该是 img, scores, path (id, date)
     data, maxidx = getdata(task, site, feature, view, filt, score_sum, order, 'Online', True)
+    if data == None: return None
     # CSA那个需要返回所有选择的CSA的列表并进行On-fly选中间的切片
     # TE那个需要返回所有的Timepoint的列表并进行On-fly选中间的切片
     # x,y,z: img, scores, path
@@ -69,7 +70,9 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'EAC', 'ATL', 'ALL'], site:Lite
     for fold in range(5):
         df_cur = main_process(task, site, feature, view=view, order=fold, score_sum=score_sum, filt=filt)
         if df is None: df = df_cur
-        else: df = pd.concat([df, df_cur])
+        else: 
+            if not df_cur.empty(): df = pd.concat([df, df_cur])
+            else: continue
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
     column_list = list(df.columns.values[3:])
@@ -102,10 +105,11 @@ def merge_feature_process(task:Literal['TE', 'CSA', 'EAC', 'ATL', 'ALL'],
 
 def merge_site_process(task:Literal['TE', 'CSA', 'EAC', 'ATL', 'ALL'], 
                        view:List[str]=['TRA', 'COR'],
+                       sites:List[str]=['Wrist', 'MCP', 'Foot'],
                        score_sum:bool=False, filt:Optional[list]=None,
                        name_str:str='outside/250825'):
     df = None
-    for site in ['Wrist', 'MCP', 'Foot']:
+    for site in sites:
         if not os.path.exists(f'./output/all_te/2featuremerged_{site}_{task}_sum{score_sum}.csv'):
             df_cur = merge_feature_process(task, site, view, score_sum, filt)
         else:
@@ -128,7 +132,7 @@ if __name__=='__main__':
             3423, 3443, 3448, 3449, 3450, 3459, 3460, 3472]
     filt = [filt_type + str(x).zfill(4) for x in filt] if filt_type in ['Arth', 'Treat'] else [filt_type + str(x).zfill(3) for x in filt]
     for ss in [False]:  # True, 
-        merge_site_process('ALL', view=['TRA', 'COR'], score_sum=ss, filt=filt, name_str='outside/250825')
+        merge_site_process('ALL', view=['TRA', 'COR'], sites=['Wrist'], score_sum=ss, filt=filt, name_str='outside/250825')
 
 
 
