@@ -9,6 +9,8 @@ from utils.get_head import return_head, return_head_gt
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import matplotlib.pyplot as plt
+
 # 从 E:\ADMIRA_models\weights\sumFalse、True 获取 {BIO}__{SITE}_2dirc_fold{FOLD}.model的权重 BME__Foot_2dirc_fold3.model
 
 # 从 getdata获得对应的fold的 monitoring 数据
@@ -87,7 +89,36 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
     column_list = list(df.columns.values[3:])
-    df_res = df.groupby(['ID', 'ScanDatum', 'ID_Timepoint'], as_index=False)[column_list].mean()
+    key_cols = ['ID', 'ScanDatum', 'ID_Timepoint']
+    pred_cols:list = [col for col in column_list if 'GT' not in col]
+    gt_cols:list = [col for col in column_list if 'GT' in col]
+
+    # get sum 
+    df['sum_for_analysis'] = df[pred_cols].sum(axis=1)
+    df['gt_sum_for_analysis'] = df[gt_cols].sum(axis=1)
+
+    # df ['ID', 'ScanDatum', 'ID_Timepoint', 'sum_for_analysis', 'gt_sum_for_analysis', 'diff']
+
+    extended_column_list = column_list + ['sum_for_analysis', 'gt_sum_for_analysis']
+    df_res = df.groupby(key_cols, as_index=False)[extended_column_list].mean()
+
+    df_res['diff'] = df_res['sum_for_analysis'] - df_res['gt_sum_for_analysis']
+    
+    df_std:pd.DataFrame = df.groupby(key_cols, as_index=False)['sum_for_analysis'].std()
+    df_std:pd.DataFrame = df_std.rename(columns={'sum_for_analysis': 'sum_std_for_analysis'})
+
+    df_res = pd.merge(df_res, df_std, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='left')
+
+    # create plot
+    x, y = df_res['diff'].to_numpy(), df_res['sum_std_for_analysis'].to_numpy()
+
+    plt.scatter(x, y, color='blue', marker='o')
+    plt.xlabel('diff between pred and gt')
+    plt.ylabel('std among models')
+    plt.title(f'{site}_{feature}_{task}_sum{score_sum}')
+    plt.grid(True)
+    plt.savefig(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.jpg', dpi=300, bbox_inches='tight')
+    
     df_res.to_csv(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv')
     return df_res
 
