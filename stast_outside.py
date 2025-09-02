@@ -15,6 +15,7 @@ def main_process(task:Literal['TE', 'CSA', 'EAC', 'ATL', 'ALL'], site:Literal['W
                  view:List[str]=['TRA', 'COR'],
                  order:int=0, score_sum:bool=False, filt:Optional[list]=None,
                  name_str:str='outside/250825') -> Union[pd.DataFrame, None]:
+    if not os.path.exists(f'./output/{name_str}'): os.makedirs(f'./output/{name_str}')
     model = getmodel(site, feature, view, score_sum)  # DONE!
     model = getweight_outside(model, r'E:\ADMIRA_models\weights', site, feature, score_sum, view, order)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
@@ -132,7 +133,7 @@ if __name__=='__main__':
             3423, 3443, 3448, 3449, 3450, 3459, 3460, 3472]
     filt = [filt_type + str(x).zfill(4) for x in filt] if filt_type in ['Arth', 'Treat'] else [filt_type + str(x).zfill(3) for x in filt]
     for ss in [False]:  # True, 
-        merge_site_process('ALL', view=['TRA', 'COR'], sites=['Wrist'], score_sum=ss, filt=filt, name_str='outside/250825')
+        merge_site_process('ALL', view=['TRA', 'COR'], sites=['Wrist'], score_sum=ss, filt=filt, name_str='outside/250902')
 
 
 
