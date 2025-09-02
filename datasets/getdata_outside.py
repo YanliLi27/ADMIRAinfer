@@ -157,6 +157,8 @@ def read_single_csv(ramris_root:str, prefix:list[str]):
             )
         elif head in df.columns:
             processed[head] = df[head]
+        elif head + '.gem' in df.columns:
+            processed[head] = df[head+'.gem']
         else:
             raise KeyError(f'missing head {head}')
     for col, series in processed.items():
@@ -173,7 +175,8 @@ def read_single_csv(ramris_root:str, prefix:list[str]):
                 else: raise AttributeError(f'{pre}')
                 n:int = 4 if 'Arth' in prefix else 3
                 df[pre_dict[idx]] = df[pre_dict[idx]].apply(lambda x: replace + str(int(x)).zfill(n))
-    df['ID_DATE'] = df['ID'] + '&' + df['DATE']
+    df['DATE'] = df['DATE'].astype(int)
+    df['ID_DATE'] = df['ID'] + '&' + df['DATE'].astype(str)
     target_column = ['ID'] + ['DATE'] + ['ID_DATE'] + ['TimePoint'] + expected_heads
     return df[target_column].copy()
 
@@ -189,53 +192,53 @@ def get_id_from_ramris(ramris_root:Union[str, list], prefix:list[str]) -> pd.Dat
         return pd.concat(df_com, ignore_index=True).copy()
     
 
-def merge_with_tolerance(A: pd.DataFrame, B: pd.DataFrame, tolerance_days: int = 30) -> pd.DataFrame:
-    """
-    按 ID 和 DATE 合并两个 DataFrame。
-    DATE 允许相差在 tolerance_days 天以内（默认 30 天），
-    最终保留 A 的日期，返回日期格式为 int (YYYYMMDD)。
-    
-    参数：
-        A, B : DataFrame
-            必须包含 ["ID", "DATE", "TP"] 三个列，以及其他任意列
-        tolerance_days : int
-            日期允许的最大差值（天数）
-    返回：
-        DataFrame
-    """
-    
-    # 转换为 datetime 以便 merge_asof
+def merge_with_tolerance(A, B, t=30):
     A = A.copy()
     B = B.copy()
-    A["DATE_dt"] = pd.to_datetime(A["DATE"].astype(str), format="%Y%m%d")
-    B["DATE_dt"] = pd.to_datetime(B["DATE"].astype(str), format="%Y%m%d")
 
-    # 按 ID 分组 + merge_asof
-    result_list = []
-    for gid, A_grp in A.groupby("ID"):
-        if gid not in B["ID"].values:
-            continue  # 如果 B 没有这个 ID，跳过
-        
-        B_grp = B[B["ID"] == gid].sort_values("DATE_dt")
-        A_grp = A_grp.sort_values("DATE_dt")
-        
-        merged = pd.merge_asof(
-            A_grp.sort_values("DATE_dt"),
-            B_grp.sort_values("DATE_dt"),
-            on="DATE_dt",
-            by="ID",
-            tolerance=pd.Timedelta(days=tolerance_days),
-            direction="nearest",
-            suffixes=("_A", "_B")
+    # 转换 DATE 为 datetime
+    A['DATE_dt'] = pd.to_datetime(A['DATE'], format='%Y%m%d')
+    B['DATE_dt'] = pd.to_datetime(B['DATE'], format='%Y%m%d')
+
+    # 找出 A 中已有列（除 ID, DATE, ID_DATE, TP, DATE_dt）
+    a_cols = set(A.columns) - {'ID', 'DATE', 'ID_DATE', 'TP', 'DATE_dt'}
+    duplicate_cols = [col for col in B.columns if col in a_cols]
+
+    # 给重复列加后缀 _B
+    B_renamed = B.rename(columns={col: col+'_B' for col in duplicate_cols})
+
+    # 按 ID 分组 merge_asof
+    merged_list = []
+
+    for id_val in A['ID'].unique():
+        A_sub = A[A['ID'] == id_val].sort_values('DATE_dt')
+        B_sub = B_renamed[B_renamed['ID'] == id_val].sort_values('DATE_dt')
+
+        merged_sub = pd.merge_asof(
+            A_sub, B_sub,
+            on='DATE_dt',
+            direction='nearest',
+            tolerance=pd.Timedelta(days=t)
         )
-        result_list.append(merged)
-    
-    merged = pd.concat(result_list, ignore_index=True)
-    
-    # 保留 A 的原始 DATE (int)，丢掉 DATE_dt
-    merged = merged.drop(columns=["DATE_dt"])
-    merged["DATE"] = merged["DATE"].astype(int)
-    
+        merged_list.append(merged_sub)
+
+    merged = pd.concat(merged_list, ignore_index=True)
+
+
+    # 删除 B 的 DATE_B 列（如果存在）
+    if 'DATE_B' in merged.columns:
+        merged.drop('DATE_B', axis=1, inplace=True)
+
+
+    merged = merged.rename(columns={col: col[:-2] for col in merged.columns if '_x' in col})
+    drop_col = [col for col in merged.columns if '_y' in col]
+    merged.drop(columns=drop_col, inplace=True)
+    # 更新 ID_DATE
+    merged['ID_DATE'] = merged['ID'].astype(str) + '&' + merged['DATE'].astype(str)
+
+    # 删除临时列
+    merged.drop(columns=['DATE_dt'], inplace=True)
+
     return merged
 
 
@@ -343,6 +346,7 @@ def data_initialization(ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
         ramris_id_score.to_csv(f'./datasets/intermediate/csv/all_ramris_init_{loading_mode}.csv')
     else:
         ramris_id_score = pd.read_csv(f'./datasets/intermediate/csv/all_ramris_init_{loading_mode}.csv')
+        ramris_id_score['DATE'] = ramris_id_score['DATE'].astype(int)
     
     # 合并MRI与RAMRIS
     if advanced_merge:
@@ -351,6 +355,8 @@ def data_initialization(ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
         result = pd.merge(mri_id_path, ramris_id_score, on=['ID', 'DATE'], how='left')
     result['DATE'] = result['DATE'].fillna(0).astype(int)
     result['DATE'] = result['DATE'].replace(0, np.nan)
+    result.drop(columns=['Unnamed: 0_B', 'Unnamed: 0', 'Unnamed: 0.1'], inplace=True)
+    result = result.sort_values(by=['ID', 'DATE'], ascending=[True, True]).reset_index(drop=True)
 
     # result.to_csv(r'./datasets/all_init.csv')
     return result
