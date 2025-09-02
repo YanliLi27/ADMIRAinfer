@@ -17,17 +17,55 @@ def find_anagrams(s, words):
     key = ''.join(sorted(s))
     return [w for w in words if ''.join(sorted(w)) == key and w != s]
 
+
+def head_regularizer(df:pd.DataFrame):
+    # CAS      EAC      ATL     TE
+    # CSANUMM, EACNUMM, AtalasNR, TENR -> ID
+    # MRI_datum.1, datum_MRI/Datum, DatumMRI,  SCANdatum -> DATE
+    # Visitenr, mritijdspunt_num, XXX, hoeveelste_MRI -> TimePoint
+    if 'CSANUMM' in df.columns:
+        df = df.rename(columns={'CSANUMM': 'ID', 'MRI_datum.1':'DATE', 'Visitenr':'TimePoint'})
+        df['ID'] = df['ID'].apply(lambda x: 'Csa' + str(int(x)).zfill(3))
+
+        df['DATE'] = df['DATE'].apply(lambda x: str(int(x)).replace('-', ''))  # 2015-03-19 -> 20150319
+
+    elif 'EACNUMM' in df.columns:
+        if 'datum_MRI' in df.columns:
+            df = df.rename(columns={'EACNUMM': 'ID', 'datum_MRI':'DATE'})
+            df['TimePoint'] = 1
+        elif 'Datum' in df.columns:
+            df = df.rename(columns={'EACNUMM': 'ID', 'Datum':'DATE', 'mritijdspunt_num':'TimePoint'})
+        df['ID'] = df['ID'].apply(lambda x: 'Arth' + str(int(x)).zfill(4))
+
+        df['DATE'] = df['DATE'].apply(lambda x: str(int(x)).replace('-', ''))  # 2015-03-19 -> 20150319
+
+    elif 'AtlasNR' in df.columns:
+        df = df.rename(columns={'AtlasNR': 'ID', 'DatumMRI':'DATE'})
+        df['TimePoint'] = 1
+        df['ID'] = df['ID'].apply(lambda x: 'Atlas' + str(int(x)).zfill(3))
+
+        df['DATE'] = df['DATE'].apply(lambda x: str(int(x)).replace('-', ''))  # 2015-03-19 -> 20150319
+
+    elif 'TENR' in df.columns:
+        df = df.rename(columns={'TENR': 'ID', 'SCANdatum':'DATE', 'hoeveelste_MRI':'TimePoint'})
+        df['DATE'] = df['DATE'].apply(lambda x: str(x).replace('-', ''))  # 2015-03-19 -> 20150319
+        df['ID'] = df['ID'].apply(lambda x: 'Treat' + str(x).zfill(4))
+    
+    df['ID_DATE'] = df['ID'] + ';' + df['DATE']
+    return df   # ID, DATE, ID_DATE(ID;DATE), TimePoint
+
+
+
 if __name__=="__main__":
     projection:dict = get_projection(False)
     projection_cnt:dict = {}
     for key in projection.keys():
         projection_cnt[key] = 1
     # 读取sav文件
-    path_lists = [r'R:\ESMIRA\ESMIRA_Scores\SPSS data\5. CSA_T1_MRI_scores_SPSS.sav',
-                r'R:\ESMIRA\ESMIRA_Scores\SPSS data\6. CSA_T2_MRI_scores_SPSS.sav',
-                r'R:\ESMIRA\ESMIRA_Scores\SPSS data\7. CSA_T4 MRI_scores_SPSS.sav',  # CSANUMM
-                r'R:\ESMIRA\ESMIRA_Scores\SPSS data\1. EAC baseline.sav', 
-                r'R:\ESMIRA\ESMIRA_Scores\SPSS data\2. EAC longitudinal.sav',
+    path_lists = [r'R:\ESMIRA\ESMIRA_Scores\SPSS data\CSA BASELINE MRI FILE 27062022.sav',
+                r'R:\ESMIRA\ESMIRA_Scores\SPSS data\CSA BASELINE AND FOLLOW-UP MRI FILE May2022_repeatedMRI_long_arthritis_censoring_date.sav',
+                r'R:\ESMIRA\ESMIRA_Scores\SPSS data\EAC BASELINE MRI FILE April 2022.sav',  # CSANUMM
+                r'R:\ESMIRA\ESMIRA_Scores\SPSS data\EAC FOLLOW-UP MRI FILE August 2025.sav', 
                 r'R:\ESMIRA\ESMIRA_Scores\SPSS data\3. Atlas.sav']
     for idx, file_path in enumerate(path_lists):
         df, meta = pyreadstat.read_sav(file_path)
@@ -37,7 +75,7 @@ if __name__=="__main__":
         csv_path = file_path.replace('.sav', '.csv')
 
 
-        if idx==4:
+        if 'EAC FOLLOW-UP' in file_path:
             new_columns = []
             for col in df.columns:
                 if col in projection.keys():
@@ -48,6 +86,14 @@ if __name__=="__main__":
             assert sum(projection_cnt.values())==0
             # 替换列名
             df.columns = new_columns
+        
+        print(df.head())
+        a = input()
+
+        # head regularizer
+        df = head_regularizer(df)
+        print(df.head())
+        a = input()
 
         df.to_csv(csv_path, index=False, encoding='utf-8')  # utf-8-sig避免中文乱码
 

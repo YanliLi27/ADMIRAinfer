@@ -2,7 +2,7 @@ import pandas as pd
 
 
 def get_projection(save:bool=False):
-    longitudinal:dict = [
+    longitudinal:list = [
         # MT --------------------------------------------------------------
         'MTD1ERO', 'MTD2ERO', 'MTD3ERO', 'MTD4ERO', 'MTD5ERO',  # MTERO - DE
         'MTP1ERO',  'MTP2ERO', 'MTP3ERO', 'MTP4ERO', 'MTP5ERO', # MTERO - PE

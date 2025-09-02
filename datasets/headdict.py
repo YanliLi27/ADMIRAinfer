@@ -1,10 +1,10 @@
 from typing import Literal, Optional
 
 
-def get_score_head(site:Literal['Wrist','MCP','Foot']='Wrist', feature:Literal['TSY','SYN','BME']='TSY', return_all:bool=False) -> list:
-    default_site:list={'Wrist':0, 'MCP':1, 'Foot':2}
-    default_bio:list={'ERO':0, 'BME':1, 'SYN':2, 'TSY':3}
-    output_keys = [
+def get_score_head(site:Literal['Wrist','MCP','Foot']='Wrist', feature:Literal['TSY','SYN','BME']='TSY', return_all:bool=False) -> list[str]:
+    default_site:dict={'Wrist':0, 'MCP':1, 'Foot':2}
+    default_bio:dict={'ERO':0, 'BME':1, 'SYN':2, 'TSY':3}
+    output_keys:list = [
         [['WRERO1', 'WRERO2', 'WRERO3', 'WRERO4', 'WRERO5', 'WREROTM', 'WREROTD', 'WREROCA', 'WREROHA', 'WREROSC', 
           'WREROLU', 'WREROTQ', 'WREROPI', 'WRERORA', 'WREROUL'], 
          ['WRBME1', 'WRBME2', 'WRBME3', 'WRBME4', 'WRBME5', 'WRBMETM', 'WRBMETD', 'WRBMECA', 

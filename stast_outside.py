@@ -1,4 +1,4 @@
-from typing import Literal, Optional, List
+from typing import Literal, Optional, List, Union
 import pandas as pd
 import os
 import torch
@@ -14,7 +14,7 @@ def main_process(task:Literal['TE', 'CSA', 'EAC', 'ATL', 'ALL'], site:Literal['W
                  feature:Literal['TSY','SYN','BME'], 
                  view:List[str]=['TRA', 'COR'],
                  order:int=0, score_sum:bool=False, filt:Optional[list]=None,
-                 name_str:str='outside/250825'):
+                 name_str:str='outside/250825') -> Union[pd.DataFrame, None]:
     model = getmodel(site, feature, view, score_sum)  # DONE!
     model = getweight_outside(model, r'E:\ADMIRA_models\weights', site, feature, score_sum, view, order)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
@@ -68,10 +68,10 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'EAC', 'ATL', 'ALL'], site:Lite
                  name_str:str='outside/250825'):
     df = None
     for fold in range(5):
-        df_cur = main_process(task, site, feature, view=view, order=fold, score_sum=score_sum, filt=filt)
+        df_cur:Union[pd.DataFrame, None] = main_process(task, site, feature, view=view, order=fold, score_sum=score_sum, filt=filt)
         if df is None: df = df_cur
         else: 
-            if not df_cur.empty(): df = pd.concat([df, df_cur])
+            if isinstance(df_cur, pd.DataFrame) and not df_cur.empty: df = pd.concat([df, df_cur])
             else: continue
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)

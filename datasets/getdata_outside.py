@@ -141,10 +141,10 @@ def auto_delimiter(file_path):
     return delimiter
 
 
-def read_single_csv(ramris_root:str, prefix:str):
+def read_single_csv(ramris_root:str, prefix:list[str]):
     delimiter = auto_delimiter(ramris_root)
     df:pd.DataFrame = pd.read_csv(ramris_root, sep=delimiter)
-    expected_heads = get_score_head(return_all=True)    
+    expected_heads:list = get_score_head(return_all=True)    
 
     processed = {}
     for head in expected_heads:
@@ -162,18 +162,23 @@ def read_single_csv(ramris_root:str, prefix:str):
     for col, series in processed.items():
         df[col] = series
 
-    df = df.rename(columns={prefix: 'ID'})
-    if 'CSA' in prefix: replace:str = 'Csa'
-    elif 'EAC' in prefix: replace:str = 'Arth'
-    elif 'Atlas' in prefix: replace:str = 'Atlas'
-    else: raise AttributeError(f'{prefix}')
-    n:int = 4 if 'Arth' in prefix else 3
-    df['ID'] = df['ID'].apply(lambda x: replace + str(int(x)).zfill(n))
-    target_column = ['ID'] + expected_heads
+    pre_dict:dict = {0:'ID', 1:'DATE', 2:'TimePoint'}
+    for idx, pre in enumerate(prefix):
+        if pre in df.columns:  # means not preprocessed
+            df = df.rename(columns={pre: pre_dict[idx]})
+            if idx==0:
+                if 'CSA' in pre: replace:str = 'Csa'
+                elif 'EAC' in pre: replace:str = 'Arth'
+                elif 'Atlas' in pre: replace:str = 'Atlas'
+                else: raise AttributeError(f'{pre}')
+                n:int = 4 if 'Arth' in prefix else 3
+                df[pre_dict[idx]] = df[pre_dict[idx]].apply(lambda x: replace + str(int(x)).zfill(n))
+    df['ID_DATE'] = df['ID'] + ';' + df['DATE']
+    target_column = ['ID'] + ['DATE'] + ['ID_DATE'] + ['TimePoint'] + expected_heads
     return df[target_column].copy()
 
 
-def get_id_from_ramris(ramris_root:Union[str, list], prefix:str) -> pd.DataFrame:
+def get_id_from_ramris(ramris_root:Union[str, list], prefix:list[str]) -> pd.DataFrame:
     # RAMRIS正常读取，只是可能需要修改读的位置
     if isinstance(ramris_root, str):
         return read_single_csv(ramris_root, prefix)
@@ -183,6 +188,57 @@ def get_id_from_ramris(ramris_root:Union[str, list], prefix:str) -> pd.DataFrame
             df_com.append(read_single_csv(root, prefix))
         return pd.concat(df_com, ignore_index=True).copy()
     
+
+def merge_with_tolerance(A: pd.DataFrame, B: pd.DataFrame, tolerance_days: int = 30) -> pd.DataFrame:
+    """
+    按 ID 和 DATE 合并两个 DataFrame。
+    DATE 允许相差在 tolerance_days 天以内（默认 30 天），
+    最终保留 A 的日期，返回日期格式为 int (YYYYMMDD)。
+    
+    参数：
+        A, B : DataFrame
+            必须包含 ["ID", "DATE", "TP"] 三个列，以及其他任意列
+        tolerance_days : int
+            日期允许的最大差值（天数）
+    返回：
+        DataFrame
+    """
+    
+    # 转换为 datetime 以便 merge_asof
+    A = A.copy()
+    B = B.copy()
+    A["DATE_dt"] = pd.to_datetime(A["DATE"].astype(str), format="%Y%m%d")
+    B["DATE_dt"] = pd.to_datetime(B["DATE"].astype(str), format="%Y%m%d")
+
+    # 按 ID 分组 + merge_asof
+    result_list = []
+    for gid, A_grp in A.groupby("ID"):
+        if gid not in B["ID"].values:
+            continue  # 如果 B 没有这个 ID，跳过
+        
+        B_grp = B[B["ID"] == gid].sort_values("DATE_dt")
+        A_grp = A_grp.sort_values("DATE_dt")
+        
+        merged = pd.merge_asof(
+            A_grp.sort_values("DATE_dt"),
+            B_grp.sort_values("DATE_dt"),
+            on="DATE_dt",
+            by="ID",
+            tolerance=pd.Timedelta(days=tolerance_days),
+            direction="nearest",
+            suffixes=("_A", "_B")
+        )
+        result_list.append(merged)
+    
+    merged = pd.concat(result_list, ignore_index=True)
+    
+    # 保留 A 的原始 DATE (int)，丢掉 DATE_dt
+    merged = merged.drop(columns=["DATE_dt"])
+    merged["DATE"] = merged["DATE"].astype(int)
+    
+    return merged
+
+
 
 def obtain_id(name:str):
     # ['CSA_Wrist_TRA\\ESMIRA-LUMC-Csa649_CSA-20180606-RightWrist_PostTRAT1f_0.mha:0to5plus0to7'，
@@ -221,7 +277,7 @@ def reverse_pkl_reader(site:Literal['Wrist','MCP','Foot']='Wrist',
                feature:Literal['TSY','SYN','BME']='TSY',
                order:int=0,
                sum_score:bool=True,
-               full_id:np.ndarray=None):
+               full_id:Union[np.ndarray, None]=None):
     # 用pkl_reader把它们转化为csv数据，然后用和此处的dataset相同的形式进行保存
     # 【un22_EAC_CSA_ATL__{site}_2dirc_1.pkl】  
     # 里面存的是 [5split  *[id[path1:cs, path2:cs, path3:cs, ...]]]的list
@@ -250,21 +306,26 @@ def reverse_pkl_reader(site:Literal['Wrist','MCP','Foot']='Wrist',
 
 
 def data_initialization(ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
-                       loading_mode:Literal['Offline', 'Online']='Offline') ->pd.DataFrame:
+                       loading_mode:Literal['Offline', 'Online']='Online',
+                       advanced_merge:bool=True) ->pd.DataFrame:
     if loading_mode=='Offline':
         path_zoo = {'CSA':r'D:\ESMIRA\SPSS data\5. CSA_T1_MRI_scores_SPSS.csv',  # CSANUMM
                     'EAC':r'D:\ESMIRA\SPSS data\1. EAC baseline.csv',  # EACNUMM
-                    'ATL':r'D:\ESMIRA\SPSS data\3. Atlas.csv'}  # AtlasNR  1,2...
+                    'ATL':r'D:\ESMIRA\SPSS data\3. Atlas.csv',
+                    'TE':r'R:\\AIMIRA\\AIMIRA_Scores\\SPSS data\\TE_scores_MRI_serieel_nieuw.csv'}  # AtlasNR  1,2...
     elif loading_mode=='Online':
-        path_zoo = {'CSA':[r'R:\ESMIRA\ESMIRA_Scores\SPSS data\5. CSA_T1_MRI_scores_SPSS.csv',  # CSANUMM
-                           r'R:\ESMIRA\ESMIRA_Scores\SPSS data\6. CSA_T2_MRI_scores_SPSS.csv',
-                           r'R:\ESMIRA\ESMIRA_Scores\SPSS data\7. CSA_T4 MRI_scores_SPSS.csv'],  # why no _ between T4 MRI
-                    'EAC':[r'R:\ESMIRA\ESMIRA_Scores\SPSS data\1. EAC baseline.csv', 
-                           r'R:\ESMIRA\ESMIRA_Scores\SPSS data\2. EAC longitudinal.csv'],  # EACNUMM
-                    'ATL':r'R:\ESMIRA\ESMIRA_Scores\SPSS data\3. Atlas.csv'}  # AtlasNR  1,2...
-    prefix_zoo = {'CSA': 'CSANUMM',  # CSANUMM
-                  'EAC': 'EACNUMM',  # EACNUMM
-                  'ATL': 'AtlasNR'}  # AtlasNR  1,2...
+        path_zoo = {'CSA':[r'R:\ESMIRA\ESMIRA_Scores\SPSS data\CSA BASELINE MRI FILE 27062022.csv',  # CSANUMM
+                           r'R:\ESMIRA\ESMIRA_Scores\SPSS data\CSA BASELINE AND FOLLOW-UP MRI FILE May2022_repeatedMRI_long_arthritis_censoring_date.csv'],
+                    'EAC':[r'R:\ESMIRA\ESMIRA_Scores\SPSS data\EAC BASELINE MRI FILE April 2022.csv', 
+                           r'R:\ESMIRA\ESMIRA_Scores\SPSS data\EAC FOLLOW-UP MRI FILE August 2025.csv'],  # EACNUMM
+                    'ATL':r'R:\ESMIRA\ESMIRA_Scores\SPSS data\3. Atlas.csv',
+                    'TE':r'R:\\AIMIRA\\AIMIRA_Scores\\SPSS data\\TE_scores_MRI_serieel_nieuw.csv'}  # AtlasNR  1,2...
+    prefix_zoo:dict[str, list[str]] = \
+                 {'CSA': ['CSANUMM', 'MRI_datum.1', 'Visitenr'],  # CSANUMM
+                  'EAC': ['EACNUMM', 'datum_MRI'  , 'mritijdspunt_num'],  # EACNUMM
+                  'ATL': ['AtlasNR', 'DatumMRI',    'Timepoint'],
+                  'TE' : ['TENR'   , 'SCANdatum', 'hoeveelste_MRI']}
+                #          ID      , DATE    ,  TimePoint
     if not os.path.exists(f'./datasets/intermediate/csv/all_mri_init_{loading_mode}.csv'): 
         mri_id_path:pd.DataFrame = get_id_from_mri(mode=loading_mode)
         mri_id_path.to_csv(f'./datasets/intermediate/csv/all_mri_init_{loading_mode}.csv')
@@ -284,7 +345,10 @@ def data_initialization(ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
         ramris_id_score = pd.read_csv(f'./datasets/intermediate/csv/all_ramris_init_{loading_mode}.csv')
     
     # 合并MRI与RAMRIS
-    result = pd.merge(mri_id_path, ramris_id_score, on=['ID', 'DATE', 'ID_DATE'], how='left')
+    if advanced_merge:
+        result = merge_with_tolerance(mri_id_path, ramris_id_score, 30)
+    else:
+        result = pd.merge(mri_id_path, ramris_id_score, on=['ID', 'DATE'], how='left')
     result['DATE'] = result['DATE'].fillna(0).astype(int)
     result['DATE'] = result['DATE'].replace(0, np.nan)
 
@@ -294,7 +358,7 @@ def data_initialization(ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
 
 def getdata(task:Literal['CSA', 'TE', 'ATL', 'EAC', 'ALL'], site:Literal['Wrist','MCP','Foot'], feature:Literal['TSY','SYN','BME'], 
             view:list[str]=['TRA', 'COR'], filt:Optional[list]=None, score_sum:bool=False, order:int=0, 
-            loading_mode:Literal['Offline', 'Online']='Offline', path_flag:bool=True):
+            loading_mode:Literal['Offline', 'Online']='Online', path_flag:bool=True):
     path_default = {'ALL':f'./datasets/intermediate/csv/all_init_{loading_mode}.csv', 
                     'EAC':f'./datasets/intermediate/csv/eac_init_{loading_mode}.csv',
                     'CSA':f'./datasets/intermediate/csv/csa_init_{loading_mode}.csv', 
@@ -304,7 +368,7 @@ def getdata(task:Literal['CSA', 'TE', 'ATL', 'EAC', 'ALL'], site:Literal['Wrist'
 
     # ---------------------------- get the selected rows ----------------------------
     if not os.path.exists(paths):
-        df:pd.DataFrame = data_initialization(loading_mode=loading_mode)
+        df:pd.DataFrame = data_initialization(loading_mode=loading_mode, advanced_merge=True)
         df.to_csv(paths)
     else:
         df:pd.DataFrame = pd.read_csv(paths)
@@ -315,7 +379,8 @@ def getdata(task:Literal['CSA', 'TE', 'ATL', 'EAC', 'ALL'], site:Literal['Wrist'
     if order==-1:
         pass
     elif order==0:
-        fold_id:list = reverse_pkl_reader(site, feature, order, score_sum, df['ID'].values)
+        select_id:np.ndarray = df['ID'].to_numpy()
+        fold_id:list = reverse_pkl_reader(site, feature, order, score_sum, select_id)
         df:pd.DataFrame = df[df['ID'].isin(fold_id)]
     else:
         fold_id:list = pkl_reader(site, feature, order, score_sum)
