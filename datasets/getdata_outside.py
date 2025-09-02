@@ -49,7 +49,7 @@ def get_id_from_mri_offline(mri_root:str, groups:list=['EAC','CSA','ATL'], sites
                     abs_path = os.path.join(foldername, item)
                     scatter = item.split('-')
                     cur_id, cur_date = scatter[2].split('_')[0], scatter[3]  # Arth4161, 20160329
-                    cur_id_date = f'{cur_id};{cur_date}'  #  Arth4161;20160329 | Csa003;20120411
+                    cur_id_date = f'{cur_id}&{cur_date}'  #  Arth4161;20160329 | Csa003;20120411
                     if cur_id_date not in data:  # create the dict
                         data[cur_id_date] = get_dict()
                     data[cur_id_date][f'{site}_{view}'] = central_selector(abs_path) # 'abs_path;2to9'
@@ -62,7 +62,7 @@ def get_id_from_mri_offline(mri_root:str, groups:list=['EAC','CSA','ATL'], sites
     final_data:pd.DataFrame = pd.DataFrame(index=range(len(data.keys())), columns=heads)
     idx = 0
     for id_date in data.keys():
-        id, date = id_date.split(';')
+        id, date = id_date.split('&')
         paths:dict = data[id_date]
         paths['ID'], paths['DATE'], paths['ID_DATE'] = id, date, id_date
         final_data.loc[idx] = paths
@@ -85,7 +85,7 @@ def get_id_from_mri_online(mri_root:str, groups:list=['EAC','CSA','ATL'], sites:
         # \LeftWrist_PostTRAT1f\images\itk\AIMIRA-LUMC-Treat0001_PLA-20150319-LeftWrist_PostTRAT1f.mha
         for date in dates:
             if not date.isdigit(): continue
-            cur_id_date = f'{cur_id};{date}'  # Treat0001;20150319
+            cur_id_date = f'{cur_id}&{date}'  # Treat0001;20150319
             data[cur_id_date] = get_dict()
             # get the paths in current folder
             all_scan_folder = os.listdir(os.path.join(mri_root, patient, date))
@@ -107,7 +107,7 @@ def get_id_from_mri_online(mri_root:str, groups:list=['EAC','CSA','ATL'], sites:
     final_data:pd.DataFrame = pd.DataFrame(index=range(len(data.keys())), columns=heads)
     idx = 0
     for id_date in data.keys():
-        id, date = id_date.split(';')
+        id, date = id_date.split('&')
         paths:dict = data[id_date]
         paths['ID'], paths['DATE'], paths['ID_DATE'] = id, date, id_date
         final_data.loc[idx] = paths
@@ -173,7 +173,7 @@ def read_single_csv(ramris_root:str, prefix:list[str]):
                 else: raise AttributeError(f'{pre}')
                 n:int = 4 if 'Arth' in prefix else 3
                 df[pre_dict[idx]] = df[pre_dict[idx]].apply(lambda x: replace + str(int(x)).zfill(n))
-    df['ID_DATE'] = df['ID'] + ';' + df['DATE']
+    df['ID_DATE'] = df['ID'] + '&' + df['DATE']
     target_column = ['ID'] + ['DATE'] + ['ID_DATE'] + ['TimePoint'] + expected_heads
     return df[target_column].copy()
 
@@ -332,7 +332,7 @@ def data_initialization(ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
     else:
         mri_id_path = pd.read_csv(f'./datasets/intermediate/csv/all_mri_init_{loading_mode}.csv')
         mri_id_path['DATE'] = mri_id_path['DATE'].astype(int)
-    # ID (Csa003), DATE(20202020), ID_DATE(ID;DATE), Site_View * 6 (abs_path;NtoN+7)
+    # ID (Csa003), DATE(20202020), ID_DATE(ID&DATE), Site_View * 6 (abs_path;NtoN+7)
     if not os.path.exists(f'./datasets/intermediate/csv/all_ramris_init_{loading_mode}.csv'): 
         ramris_id_score:pd.DataFrame = pd.DataFrame()
         for root in ramris_root:
