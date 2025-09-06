@@ -69,7 +69,8 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'EAC', 'ATL', 'ALL'], site:Lite
                  name_str:str='outside/250825'):
     df = None
     for fold in range(5):
-        df_cur:Union[pd.DataFrame, None] = main_process(task, site, feature, view=view, order=fold, score_sum=score_sum, filt=filt)
+        df_cur:Union[pd.DataFrame, None] = main_process(task, site, feature, view=view, order=fold, 
+                                                        score_sum=score_sum, filt=filt, name_str=name_str)
         if df is None: df = df_cur
         else: 
             if isinstance(df_cur, pd.DataFrame) and not df_cur.empty: df = pd.concat([df, df_cur])
@@ -90,7 +91,7 @@ def merge_feature_process(task:Literal['TE', 'CSA', 'EAC', 'ATL', 'ALL'],
     df = None
     for feature in ['TSY','SYN','BME']:
         if not os.path.exists(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv'):
-            df_cur = merge_fold_process(task, site, feature, view, score_sum, filt)
+            df_cur = merge_fold_process(task, site, feature, view, score_sum, filt, name_str)
         else:
             df_cur = pd.read_csv(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv', index_col=0)
         if score_sum:
@@ -112,7 +113,7 @@ def merge_site_process(task:Literal['TE', 'CSA', 'EAC', 'ATL', 'ALL'],
     df = None
     for site in sites:
         if not os.path.exists(f'./output/all_te/2featuremerged_{site}_{task}_sum{score_sum}.csv'):
-            df_cur = merge_feature_process(task, site, view, score_sum, filt)
+            df_cur = merge_feature_process(task, site, view, score_sum, filt, name_str)
         else:
             df_cur = pd.read_csv(f'./output/all_te/2featuremerged_{site}_{task}_sum{score_sum}.csv', index_col=0)
         if df is None: df = df_cur

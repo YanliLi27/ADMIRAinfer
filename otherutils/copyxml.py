@@ -11,9 +11,9 @@ import os
 # R:\ESMIRA\ESMIRA_Database\LUMC\ESMIRA_patient_ID_CSA\Date\ 下找xml文件
 
 
-def copy_paste(dir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024\ramris_siteWrist_feaTSY_TRA',
+def copy_paste(dir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_03012025\ramris_siteWrist_feaTSY_TRA',
                xmldir:str=r'R:\ESMIRA\ESMIRA_Database\LUMC',
-               newxmldir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024\xmlfiles'):
+               newxmldir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_03012025\xmlfiles'):
     # dir: R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024
     if not os.path.exists(newxmldir):
         os.makedirs(newxmldir)
@@ -40,9 +40,9 @@ def copy_paste(dir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanl
         shutil.copyfile(absxmlfile, newxmlfile)
 
 
-def copy_paste_eac(dir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024\ramris_siteWrist_feaTSY_TRA',
+def copy_paste_eac(dir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_03012025\ramris_siteWrist_feaTSY_TRA',
                xmldir:str=r'R:\ESMIRA\ESMIRA_Database\LUMC',
-               newxmldir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024\xmlfiles'):
+               newxmldir:str=r'R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_03012025\xmlfiles'):
     # dir: R:\ESMIRA\ESMIRA_Results\CAM_for_RAMRIS_estimation_Yanli_2view_07112024
     if not os.path.exists(newxmldir):
         os.makedirs(newxmldir)

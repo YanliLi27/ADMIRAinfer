@@ -38,7 +38,8 @@ def cam_2view_main_process(task:Literal['CSA', 'TE', 'EAC'], site:Literal['Wrist
             176, 335, 131, 291, 598, 135, 431, 560, 722, 133, 314, 781, 156, 356]
     
     # updated
-    eac_filt = [3599, 3914, 3893, 4124, 4148, 3679, 3436, 3454, 3945, 3957]
+    eac_filt = [3599,4263,3640,4367,3713,3852,3985,3970,4702,4243,4172,3893,4124,4686,3804,4515,3679,4396]
+
     filt = ['Csa' + str(x).zfill(3) for x in csa_filt] if task=='CSA' else ['Arth' + str(x).zfill(4) for x in eac_filt]
     data, _ = getdata(task, site, feature, view, filt, score_sum, path_flag=False) \
         if task=='CSA'  else getdata_eac(task, site, feature, view, None, score_sum, path_flag=False)
