@@ -31,7 +31,8 @@ import matplotlib.pyplot as plt
 def main_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', 'MCP', 'Foot'],
                  feature:Literal['TSY','SYN','BME'], 
                  view:List[str]=['TRA', 'COR'],
-                 order:int=0, score_sum:bool=False, filt:Optional[list]=None):
+                 order:int=0, score_sum:bool=False, filt:Optional[list]=None,
+                 name_str:str='temp'):
     model = getmodel(site, feature, view, score_sum)  # DONE!
     model = getweight_outside(model, r'E:\ADMIRA_models\weights', site, feature, score_sum, view, order)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
@@ -68,7 +69,10 @@ def main_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', 'MCP', 
                 df.loc[idx] = row
                 idx += 1
         # 用pd.concat([df, new_row], ignore_index=True)来添加新的一行数据
-    df.to_csv(f'./output/all_te/0unmerged_{site}_{feature}_{task}_sum{score_sum}_{order}.csv')
+    path = f'./output/all_te_{name_str}/0unmerged_{site}_{feature}_{task}_sum{score_sum}_{order}.csv'
+    dir = os.path.dirname(path)
+    if not os.path.exists(dir): os.makedirs(dir)
+    df.to_csv(path)
     return df
     # inference:
     # 直接for x,y,z in Dataloader():
@@ -80,10 +84,11 @@ def main_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', 'MCP', 
 def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', 'MCP', 'Foot'],
                  feature:Literal['TSY','SYN','BME'], 
                  view:List[str]=['TRA', 'COR'],
-                 score_sum:bool=False, filt:Optional[list]=None):
+                 score_sum:bool=False, filt:Optional[list]=None,
+                 name_str:str='temp'):
     df = None
     for fold in range(5):
-        df_cur = main_process(task, site, feature, view=view, order=fold, score_sum=score_sum, filt=filt)
+        df_cur = main_process(task, site, feature, view=view, order=fold, score_sum=score_sum, filt=filt, name_str=name_str)
         if df is None: df = df_cur
         else: df = pd.concat([df, df_cur])
     assert df is not None
@@ -117,20 +122,23 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
     plt.ylabel('std among models')
     plt.title(f'{site}_{feature}_{task}_sum{score_sum}')
     plt.grid(True)
-    plt.savefig(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.jpg', dpi=300, bbox_inches='tight')
+
+    path = f'./output/all_te_{name_str}/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.jpg'
+    plt.savefig(path, dpi=300, bbox_inches='tight')
     
-    df_res.to_csv(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv')
+    df_res.to_csv(path.replace('.jpg', '.csv'))
     return df_res
 
 
 def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'], 
                           site:Literal['Wrist', 'MCP', 'Foot'],
                           view:List[str]=['TRA', 'COR'],
-                          score_sum:bool=False, filt:Optional[list]=None):
+                          score_sum:bool=False, filt:Optional[list]=None,
+                          name_str:str='temp'):
     df = None
     for feature in ['TSY','SYN','BME']:
         if not os.path.exists(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv'):
-            df_cur = merge_fold_process(task, site, feature, view, score_sum, filt)
+            df_cur = merge_fold_process(task, site, feature, view, score_sum, filt, name_str=name_str)
         else:
             df_cur = pd.read_csv(f'./output/all_te/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv', index_col=0)
         if score_sum:
@@ -140,24 +148,28 @@ def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'],
         else: df = pd.merge(df, df_cur, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='inner')
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/all_te/2featuremerged_{site}_{task}_sum{score_sum}.csv')
+
+    path = f'./output/all_te_{name_str}/2featuremerged_{site}_{task}_sum{score_sum}.csv'
+    df.to_csv(path)
     return df
 
 
 def merge_site_process(task:Literal['TE', 'CSA', 'ALL'], 
                        view:List[str]=['TRA', 'COR'],
-                       score_sum:bool=False, filt:Optional[list]=None):
+                       score_sum:bool=False, filt:Optional[list]=None,
+                       name_str:str='temp'):
     df = None
     for site in ['Wrist', 'MCP', 'Foot']:
         if not os.path.exists(f'./output/all_te/2featuremerged_{site}_{task}_sum{score_sum}.csv'):
-            df_cur = merge_feature_process(task, site, view, score_sum, filt)
+            df_cur = merge_feature_process(task, site, view, score_sum, filt, name_str)
         else:
             df_cur = pd.read_csv(f'./output/all_te/2featuremerged_{site}_{task}_sum{score_sum}.csv', index_col=0)
         if df is None: df = df_cur
         else: df = pd.merge(df, df_cur, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='outer')
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/all_te/3sitemerged_{task}_sum{score_sum}.csv')
+    path = f'./output/all_te_{name_str}/3sitemerged_{task}_sum{score_sum}.csv'
+    df.to_csv(path)
     return df
 
 
