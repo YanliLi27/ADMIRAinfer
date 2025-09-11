@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import matplotlib.pyplot as plt
+from scipy.stats import pearsonr, spearmanr
 
 # 从 E:\ADMIRA_models\weights\sumFalse、True 获取 {BIO}__{SITE}_2dirc_fold{FOLD}.model的权重 BME__Foot_2dirc_fold3.model
 
@@ -95,19 +96,23 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
     df = df.sort_values(by='ID').reset_index(drop=True)
     column_list = list(df.columns.values[3:])
     key_cols = ['ID', 'ScanDatum', 'ID_Timepoint']
-    pred_cols:list = [col for col in column_list if 'GT' not in col]
-    gt_cols:list = [col for col in column_list if 'GT' in col]
+    pred_cols:list = [col for col in column_list if 'GT' not in col and 'gt' not in col]
+    gt_cols:list = [col for col in column_list if 'GT' in col or 'gt' in col]
 
     # get sum 
     df['sum_for_analysis'] = df[pred_cols].sum(axis=1)
     df['gt_sum_for_analysis'] = df[gt_cols].sum(axis=1)
+    df['diff_for_analysis'] = df['sum_for_analysis'] - df['gt_sum_for_analysis'] 
 
     # df ['ID', 'ScanDatum', 'ID_Timepoint', 'sum_for_analysis', 'gt_sum_for_analysis', 'diff']
 
-    extended_column_list = column_list + ['sum_for_analysis', 'gt_sum_for_analysis']
+    extended_column_list = column_list + ['sum_for_analysis', 'gt_sum_for_analysis', 'diff_for_analysis']
     df_res = df.groupby(key_cols, as_index=False)[extended_column_list].mean()
 
-    df_res['diff'] = df_res['sum_for_analysis'] - df_res['gt_sum_for_analysis']
+    # df_res['diff'] = df_res['sum_for_analysis'] - df_res['gt_sum_for_analysis']
+    # df_res['abs_diff'] = df_res['diff'].apply(lambda x: abs(x))
+    df_res['diff'] = df_res['diff_for_analysis']
+    df_res['abs_diff'] = df_res['diff'].apply(lambda x: abs(x))
     
     df_std:pd.DataFrame = df.groupby(key_cols, as_index=False)['sum_for_analysis'].std()
     df_std:pd.DataFrame = df_std.rename(columns={'sum_for_analysis': 'sum_std_for_analysis'})
@@ -115,16 +120,19 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
     df_res = pd.merge(df_res, df_std, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='left')
 
     # create plot
-    x, y = df_res['diff'].to_numpy(), df_res['sum_std_for_analysis'].to_numpy()
+    x, y, abs_x = df_res['diff'].to_numpy(), df_res['sum_std_for_analysis'].to_numpy(), df_res['abs_diff'].to_numpy()
 
-    plt.scatter(x, y, color='blue', marker='o')
-    plt.xlabel('diff between pred and gt')
-    plt.ylabel('std among models')
-    plt.title(f'{site}_{feature}_{task}_sum{score_sum}')
+    corr, p_value = pearsonr(y, abs_x)# spearmanr(y, abs_x) # 
+    plt.clf()
+    plt.scatter(y, x, color='blue', marker='o')
+    plt.ylabel('diff between pred and gt')
+    plt.xlabel('std among models')
+    plt.title(f'{site}_{feature}_{task}_sum{score_sum}: corr with abs - {corr}, p - {p_value}')
     plt.grid(True)
 
     path = f'./output/all_te_{name_str}/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.jpg'
     plt.savefig(path, dpi=300, bbox_inches='tight')
+    plt.clf()
     
     df_res.to_csv(path.replace('.jpg', '.csv'))
     return df_res
@@ -174,8 +182,8 @@ def merge_site_process(task:Literal['TE', 'CSA', 'ALL'],
 
 
 if __name__=='__main__':
-    for ss in [False]:  # True, 
-        merge_site_process('TE', view=['TRA', 'COR'], score_sum=ss, filt=None)
+    for ss in [True]:  # True, 
+        merge_site_process('TE', view=['TRA', 'COR'], score_sum=ss, filt=None, name_str='with_std')
 
 
 

@@ -57,6 +57,8 @@ def getdata_eac(task:Literal['EAC'], site:Literal['Wrist','MCP','Foot'], feature
     # 筛除某些部分
     if filt: 
         target = target[target['ID'].isin(filt)]
+        target = target.fillna(0)
+        print('fill nan with 0!')
         print(len(filt))
         print(target.shape[0])
     target = target.dropna()
