@@ -47,6 +47,11 @@ def read_dicom_series(directory: Path) -> sitk.Image:
 
 
 def main():
+    # -------------------------------------------------------------------------------
+    # TODO use --target_anatomical_site='Wrist', --target_inflammation_feature=Literal['TSY', 'SYN', 'BME'], 
+    # --quantification_type='Total', --model_type=['TRA'] to test
+    # -------------------------------------------------------------------------------
+
     input_directory = Path(os.environ['INPUT_FOLDER']) # input directory for DICOM
     input_model = Path(os.environ['INPUT_MODEL']) # input directory for AI model
     output_directory = Path(os.environ['OUTPUT_FOLDER']) # output directory for AI, folder where Pandas file is stored
@@ -58,21 +63,25 @@ def main():
         "target_anatomical_site",
         type=Literal['Wrist', 'MCP', 'Foot'],
         help="The anatomical site that wanted to be quantified",
+        default='Wrist',
     )
     parser.add_argument(
         "target_inflammation_feature",
         type=Literal['TSY', 'SYN', 'BME'],
         help="The inflammation feature that wanted to be quantified",
+        default='TSY',
     )
     parser.add_argument(
         "quantification_type",
         type=Literal['Total', 'PerLocation'],
         help="The output type - either one score for the entire site and feature, or one score for each location",
+        default='Total',
     )
     parser.add_argument(
         "model_type",
         type=List[str],
         help="The model take-in type - either TRA or COR or TRA+COR",
+        default='TRA',
     )
     args = parser.parse_args()
 
@@ -82,7 +91,9 @@ def main():
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # itk_image{'CORT1f': data-np.ndarray, 'TRAT1f': data-np.ndarray}
+    # -------------------------------------------------------------------------------
+    # TODO itk_image{'TRAT1f': data-np.ndarray, Optional('CORT1f': data-np.ndarray)}
+    # -------------------------------------------------------------------------------
 
     result:Union[float, dict[str, float]] = ADMIRAquant(itk_image, input_model, args)
     # save_result(result, output_directory)
@@ -91,3 +102,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

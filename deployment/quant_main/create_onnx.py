@@ -72,3 +72,4 @@ def create_onnx_from_model(src, dst,
             input_names=['input'], 
             output_names=['output'],
             dynamic_axes=dynamic_axes_23)
+    print(f'{dst} succeed!')

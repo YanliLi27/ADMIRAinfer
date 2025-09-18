@@ -5,7 +5,7 @@ import onnxruntime as ort
 from typing import Literal, Union, List
 
 from admira_function import return_head, central_selector
-from create_onnx import create_onnx_from_model
+from create_onnx import create_onnx_from_model  # necessary only when no onnx models exists, but pytorch model exists
 
 
 class BaseADMIRA:
@@ -14,7 +14,8 @@ class BaseADMIRA:
         assert model_type in [['TRA'], ['COR'], ['TRA', 'COR']]
         model_path = self._obtain_model(model_dir, site, feature, model_type)
         if not Path.exists(model_path):
-            raw_model_path:str = model_path.replace('onnx_model', 'raw_model').replace('.model', '.onnx')
+            raw_model_path:str = str(model_path).replace('onnx_model', 'raw_model')
+            raw_model_path:str = raw_model_path.replace('.onnx', '.model')
             self._create_onnx(raw_model_path, model_path)
             assert Path.exists(model_path)
         self.session = self._load_model(model_path)
@@ -79,9 +80,11 @@ class TotalADMIRA(BaseADMIRA):
 
 
     def _obtain_model(self, model_dir:str, site:Literal['Wrist', 'MCP', 'Foot'], 
-                      feature:Literal['TSY', 'SYN', 'BME'], model_type:Union[List]) -> str:
-        mt = '2dirc' if len(model_type)>1 else f'{model_type}'
-        model_path:str = Path(model_dir / 'onnx_model' / '20250918' / 'Total' / f'{feature}__{site}_{mt}_fold{0}Sum.onnx')
+                      feature:Literal['TSY', 'SYN', 'BME'], model_type:Union[List],
+                      fold:int=0) -> str:
+        mt = '2dirc' if len(model_type)>1 else f'{model_type[0]}'
+        model_path:str = Path(model_dir)
+        model_path:str = model_path / 'Total' / f'{feature}__{site}_{mt}_fold{fold}Sum.onnx'
         return model_path
     
 
@@ -122,9 +125,11 @@ class HighGranularityADMIRA(BaseADMIRA):
 
 
     def _obtain_model(self, model_dir:str, site:Literal['Wrist', 'MCP', 'Foot'], 
-                      feature:Literal['TSY', 'SYN', 'BME'], model_type:Union[List]) -> str:
-        mt = '2dirc' if len(model_type)>1 else f'{model_type}'
-        model_path:str = Path(model_dir / 'onnx_model' / '20250918' / 'PerLocation' / f'{feature}__{site}_{mt}_fold{0}.onnx')
+                      feature:Literal['TSY', 'SYN', 'BME'], model_type:Union[List],
+                      fold:int=0) -> str:
+        mt = '2dirc' if len(model_type)>1 else f'{model_type[0]}'
+        model_path:str = Path(model_dir)
+        model_path:str = model_path / 'PerLocation' / f'{feature}__{site}_{mt}_fold{fold}.onnx'
         return model_path
     
 
