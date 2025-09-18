@@ -109,10 +109,10 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
     extended_column_list = column_list + ['sum_for_analysis', 'gt_sum_for_analysis', 'diff_for_analysis']
     df_res = df.groupby(key_cols, as_index=False)[extended_column_list].mean()
 
-    # df_res['diff'] = df_res['sum_for_analysis'] - df_res['gt_sum_for_analysis']
-    # df_res['abs_diff'] = df_res['diff'].apply(lambda x: abs(x))
-    df_res['diff'] = df_res['diff_for_analysis']
+    df_res['diff'] = df_res['sum_for_analysis'] - df_res['gt_sum_for_analysis']
     df_res['abs_diff'] = df_res['diff'].apply(lambda x: abs(x))
+    # df_res['diff'] = df_res['diff_for_analysis']
+    # df_res['abs_diff'] = df_res['diff'].apply(lambda x: abs(x))
     
     df_std:pd.DataFrame = df.groupby(key_cols, as_index=False)['sum_for_analysis'].std()
     df_std:pd.DataFrame = df_std.rename(columns={'sum_for_analysis': 'sum_std_for_analysis'})
@@ -121,10 +121,14 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
 
     # create plot
     x, y, abs_x = df_res['diff'].to_numpy(), df_res['sum_std_for_analysis'].to_numpy(), df_res['abs_diff'].to_numpy()
-
+    min_val, max_val = min(min(x), min(y)), max(max(x), max(y), -min(x), -min(y))
+ 
     corr, p_value = pearsonr(y, abs_x)# spearmanr(y, abs_x) # 
     plt.clf()
     plt.scatter(y, x, color='blue', marker='o')
+    plt.xlim(0, max_val)
+    plt.ylim(min_val, max_val)
+    plt.gca().set_aspect('equal', adjustable='box')
     plt.ylabel('diff between pred and gt')
     plt.xlabel('std among models')
     plt.title(f'{site}_{feature}_{task}_sum{score_sum}: corr with abs - {corr}, p - {p_value}')

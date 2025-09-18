@@ -34,4 +34,4 @@
 /.vscode
 
 /output
-/MIRJIM/model_out
+/deployment/mirjim_test/model_out
