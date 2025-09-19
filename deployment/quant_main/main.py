@@ -41,7 +41,7 @@ def quantification(input_directory: Path, input_models:Path):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--target_anatomical_site",
-        choices=['Wrist', 'MCP', 'Foot'],
+        choices=['Wrist'], #, 'MCP', 'Foot'],
         help="The anatomical site that wanted to be quantified",
         default='Wrist',
     )

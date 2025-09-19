@@ -8,14 +8,11 @@ from admira_function import return_head, central_selector
 from create_onnx import create_onnx_from_model  # necessary only when no onnx models exists, but pytorch model exists
 
 
-def ADMIRAquant(image: np.array, args:Any, model_dir:Optional[str]=None) -> Union[float, dict[str, float]]:
+def ADMIRAquant(image:dict[str, np.ndarray], args:Any, model_dir:str) -> Union[float, dict[str, float]]:
     site, feature, quant_type, model_type = \
         args.target_anatomical_site, args.target_inflammation_feature, args.quantification_type, args.model_type
     # obtain quantification info
-
-    if not model_dir or not Path.exists(model_dir):
-        model_dir = r'R:\ESMIRA\ESMIRA_Models\ADMIRA\onnx_model\20250918'
-        print(f'loading models from default path: {model_dir}')
+    
     # obtain model and weight
     if quant_type=='Total': 
         agent:BaseADMIRA = TotalADMIRA(model_dir, site, feature, model_type)
@@ -30,7 +27,7 @@ class BaseADMIRA:
     def __init__(self, model_dir:str, site:Literal['Wrist', 'MCP', 'Foot'], feature:Literal['TSY', 'SYN', 'BME'],
                  model_type:List[str]):
         assert model_type in [['TRA'], ['COR'], ['TRA', 'COR']]
-        model_path = str(self._obtain_model(model_dir, site, feature, model_type))
+        model_path:str = self._obtain_model(model_dir, site, feature, model_type)
         if not os.path.exists(model_path):
             raw_model_path:str = str(model_path).replace('onnx_model', 'raw_model')
             raw_model_path:str = raw_model_path.replace('.onnx', '.model')
@@ -44,7 +41,7 @@ class BaseADMIRA:
 
 
     def _obtain_model(self, model_dir:str, site:Literal['Wrist', 'MCP', 'Foot'], 
-                      feature:Literal['TSY', 'SYN', 'BME'], model_type:Union[List]) -> str:
+                      feature:Literal['TSY', 'SYN', 'BME'], model_type:List[str]) -> str:
         raise NotImplementedError("obtain model method requries to be customized")
     
 
@@ -99,12 +96,12 @@ class TotalADMIRA(BaseADMIRA):
 
 
     def _obtain_model(self, model_dir:str, site:Literal['Wrist', 'MCP', 'Foot'], 
-                      feature:Literal['TSY', 'SYN', 'BME'], model_type:Union[List],
+                      feature:Literal['TSY', 'SYN', 'BME'], model_type:List[str],
                       fold:int=0) -> str:
         mt = '2dirc' if len(model_type)>1 else f'{model_type[0]}'
-        model_path:str = Path(model_dir)
-        model_path:str = model_path / 'Total' / f'{feature}__{site}_{mt}_fold{fold}Sum.onnx'
-        return model_path
+        model_path = Path(model_dir)
+        model_path = model_path / 'Total' / f'{feature}__{site}_{mt}_fold{fold}Sum.onnx'
+        return str(model_path)
     
 
     def _create_onnx(self, src, dst):
@@ -132,8 +129,8 @@ class TotalADMIRA(BaseADMIRA):
                 image:np.ndarray = np.expand_dims(image, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
                 data_list[0] = image   # [] <-- np.array [1, 7, 512, 512]
         # data = np.concatenate(data_list, axis=0)  #  [n, 7, 512, 512]
-        data = np.expand_dims(data_list, axis=0)
-        return data.astype(np.float32)
+        data_list = np.expand_dims(data_list, axis=0)
+        return data_list.astype(np.float32)
 
 
     def _postprocess(self, outputs:np.ndarray) -> dict[str, float]:  # from score to RAMRIS
@@ -151,9 +148,9 @@ class HighGranularityADMIRA(BaseADMIRA):
                       feature:Literal['TSY', 'SYN', 'BME'], model_type:Union[List],
                       fold:int=0) -> str:
         mt = '2dirc' if len(model_type)>1 else f'{model_type[0]}'
-        model_path:str = Path(model_dir)
-        model_path:str = model_path / 'PerLocation' / f'{feature}__{site}_{mt}_fold{fold}.onnx'
-        return model_path
+        model_path = Path(model_dir)
+        model_path = model_path / 'PerLocation' / f'{feature}__{site}_{mt}_fold{fold}.onnx'
+        return str(model_path)
     
 
     def _create_onnx(self, src, dst) -> None:
@@ -181,8 +178,8 @@ class HighGranularityADMIRA(BaseADMIRA):
                 file:np.ndarray = np.expand_dims(file, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
                 data_list[0] = file   # [] <-- np.array [1, 7, 512, 512]
         # data = np.concatenate(data_list, axis=0)  #  [n, 7, 512, 512] / [N, 7, X, Y]
-        data = np.expand_dims(data_list, axis=0)
-        return data.astype(np.float32)
+        data_list = np.expand_dims(data_list, axis=0)
+        return data_list.astype(np.float32)
 
 
     def _postprocess(self, outputs) -> dict[str, float]:  # from score to RAMRIS

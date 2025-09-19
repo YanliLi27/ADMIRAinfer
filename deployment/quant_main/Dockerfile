@@ -24,6 +24,10 @@ FROM python:3.13-slim-bookworm
 # Copy the application from the builder
 COPY --from=builder --chown=app:app /app /app
 
+# Add the ONNX models to the image
+# Make sure the host path (first argument) is correct relative to your Dockerfile context.
+COPY R:/ESMIRA/ESMIRA_Models/ADMIRA/onnx_model/20250919 /models/20250919
+
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 ENV TZ=Europe/Amsterdam
