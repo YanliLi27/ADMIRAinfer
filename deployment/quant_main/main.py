@@ -7,25 +7,7 @@ from typing import Union, Optional, Literal, Any, List  # Any for namespace
 import SimpleITK as sitk
 import numpy as np
 
-from .admira_main import BaseADMIRA, TotalADMIRA, HighGranularityADMIRA
-
-
-def ADMIRAquant(image: np.array, args:Any, model_dir:Optional[str]) -> Union[float, dict[str, float]]:
-    site, feature, quant_type, model_type = \
-        args.target_anatomical_site, args.target_inflammation_feature, args.quantification_type, args.model_type
-    # obtain quantification info
-
-    if not Path.exists(model_dir):
-        model_dir = r'R:\ESMIRA\ESMIRA_Models\ADMIRA\onnx_model\20250918'
-        print(f'loading models from default path: {model_dir}')
-    # obtain model and weight
-    if quant_type=='Total': 
-        agent:BaseADMIRA = TotalADMIRA(model_dir, site, feature, model_type)
-    
-    elif quant_type=='PerLocation':
-        agent:BaseADMIRA = HighGranularityADMIRA(model_dir, site, feature, model_type)
-    
-    return agent.predict(image)
+from .admira_agent import ADMIRAquant
 
 
 def read_dicom_series(directory: Path) -> sitk.Image:
@@ -49,13 +31,17 @@ def read_dicom_series(directory: Path) -> sitk.Image:
 def main():
     # -------------------------------------------------------------------------------
     # TODO use --target_anatomical_site='Wrist', --target_inflammation_feature=Literal['TSY', 'SYN', 'BME'], 
-    # --quantification_type='Total', --model_type=['TRA'] to test
+    # --quantification_type='Total', --model_type=['TRA'] to test one view model
     # -------------------------------------------------------------------------------
 
     input_directory = Path(os.environ['INPUT_FOLDER']) # input directory for DICOM
     input_model = Path(os.environ['INPUT_MODEL']) # input directory for AI model
+    # model stored at: input_model / 'Total' or 'PerLocation' / f'{feature}__{site}_{mt}_fold{fold}Sum.onnx' or f'{feature}__{site}_{mt}_fold{fold}.onnx'
+    # feature - 'TSY', 'SYN', 'BME', site - 'Wrist', 'MCP', 'Foot', mt - '2dirc', 'TRA', 'COR', fold - 0->5
     output_directory = Path(os.environ['OUTPUT_FOLDER']) # output directory for AI, folder where Pandas file is stored
 
+
+    # -------------------------------------- argparse -----------------------------------------
     parser = argparse.ArgumentParser(
         description="Read a folder of DICOM images with SimpleITK."
     )
@@ -79,12 +65,14 @@ def main():
     )
     parser.add_argument(
         "model_type",
-        type=List[str],
+        type=List[str], # ['TRA'], ['COR'], ['TRA', 'COR']
         help="The model take-in type - either TRA or COR or TRA+COR",
-        default='TRA',
+        default=['TRA'],
     )
     args = parser.parse_args()
+    # -------------------------------------- argparse -----------------------------------------
 
+    # ------------------------------------ data loader ----------------------------------------
     try:
         itk_image:dict[str, np.ndarray] = read_dicom_series(input_directory)
     except Exception as e:
@@ -94,8 +82,11 @@ def main():
     # -------------------------------------------------------------------------------
     # TODO itk_image{'TRAT1f': data-np.ndarray, Optional('CORT1f': data-np.ndarray)}
     # -------------------------------------------------------------------------------
+    # ------------------------------------ data loader ----------------------------------------
 
-    result:Union[float, dict[str, float]] = ADMIRAquant(itk_image, input_model, args)
+    result:dict[str, float] = ADMIRAquant(itk_image, input_model, args)
+    # result: {'Total inflammation': float} or {'Site_Feature': float, ...}
+
     # save_result(result, output_directory)
     print(result)
 

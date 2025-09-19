@@ -83,7 +83,7 @@ def _hist_selector(data:np.array)->str:  # data: [20, 512, 512]
     return max_range2, oa2
 
 
-def central_selector(data_array:np.array)->str:
+def central_selector(data_array:np.array)->int:
     # datapath: os.path.join(dirpath, file) -- data_root + subnaem + filename = 'Root/EAC_Wrist_TRA/Names'
     if data_array.shape[0] < 7:
         raise ValueError(f'image have shape of {data_array.shape}')

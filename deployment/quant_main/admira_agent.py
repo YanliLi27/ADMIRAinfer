@@ -2,26 +2,45 @@ import os
 from pathlib import Path
 import numpy as np
 import onnxruntime as ort
-from typing import Literal, Union, List
+from typing import Literal, Union, List, Any, Optional
 
-from admira_function import return_head, central_selector
-from create_onnx import create_onnx_from_model  # necessary only when no onnx models exists, but pytorch model exists
+from .admira_function import return_head, central_selector
+from .create_onnx import create_onnx_from_model  # necessary only when no onnx models exists, but pytorch model exists
+
+
+def ADMIRAquant(image: np.array, args:Any, model_dir:Optional[str]=None) -> Union[float, dict[str, float]]:
+    site, feature, quant_type, model_type = \
+        args.target_anatomical_site, args.target_inflammation_feature, args.quantification_type, args.model_type
+    # obtain quantification info
+
+    if not model_dir or not Path.exists(model_dir):
+        model_dir = r'R:\ESMIRA\ESMIRA_Models\ADMIRA\onnx_model\20250918'
+        print(f'loading models from default path: {model_dir}')
+    # obtain model and weight
+    if quant_type=='Total': 
+        agent:BaseADMIRA = TotalADMIRA(model_dir, site, feature, model_type)
+    
+    elif quant_type=='PerLocation':
+        agent:BaseADMIRA = HighGranularityADMIRA(model_dir, site, feature, model_type)
+    
+    return agent.predict(image)
 
 
 class BaseADMIRA:
     def __init__(self, model_dir:str, site:Literal['Wrist', 'MCP', 'Foot'], feature:Literal['TSY', 'SYN', 'BME'],
                  model_type:List[str]):
         assert model_type in [['TRA'], ['COR'], ['TRA', 'COR']]
-        model_path = self._obtain_model(model_dir, site, feature, model_type)
-        if not Path.exists(model_path):
+        model_path = str(self._obtain_model(model_dir, site, feature, model_type))
+        if not os.path.exists(model_path):
             raw_model_path:str = str(model_path).replace('onnx_model', 'raw_model')
             raw_model_path:str = raw_model_path.replace('.onnx', '.model')
             self._create_onnx(raw_model_path, model_path)
-            assert Path.exists(model_path)
+            assert os.path.exists(model_path)
         self.session = self._load_model(model_path)
         self.site = site
         self.feature = feature
         self.model_type = model_type
+        self.input_dimension = len(model_type) 
 
 
     def _obtain_model(self, model_dir:str, site:Literal['Wrist', 'MCP', 'Foot'], 
@@ -33,7 +52,7 @@ class BaseADMIRA:
         raise NotImplementedError("create onnx function requries to be customized")
     
 
-    def _load_model(self, model_path):
+    def _load_model(self, model_path:str):
         """ 加载 Pytorch/ONNX 模型 """
         if os.path.exists(model_path):
             if ".onnx" in model_path: 
@@ -42,7 +61,7 @@ class BaseADMIRA:
         raise AttributeError(f"{model_path} not exists!") 
     
     
-    def _intensity_normalize(self, volume: np.array):
+    def _intensity_normalize(self, volume: np.ndarray) -> np.ndarray:
         min_value = volume.min()
         max_value = volume.max()
         if max_value > min_value:
@@ -94,20 +113,24 @@ class TotalADMIRA(BaseADMIRA):
 
     def _preprocess(self, data:dict[str, np.ndarray]):
         """ preprocess the data to have the data shape as the onnx models required """
-        data_list = []
-        for key, file in data:
+        data_list = np.zeros([self.input_dimension, 7, 512, 512])
+        for key, file in data.items():
             # find the central slices
             if not file.shape[0]>6: raise ValueError('image has slice number less than 7')
             if key=='CORT1f':
-                cs = central_selector(file)
-                file = self._intensity_normalize(file[cs:cs+7])
+                cs:int = central_selector(file)
+                file:np.ndarray = self._intensity_normalize(file[cs:cs+7])
+                file:np.ndarray = np.expand_dims(file, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
+                data_list[1] = file   # [] <-- np.array [1, 7, 512, 512]
             elif key=='TRAT1f':
                 if file.shape[0]//2 > 7:
                     center = file.shape[0]//2
                     s = slice(center-7, center+7, 2)
                     file = self._intensity_normalize(file[s])
-            file = np.expand_dims(file, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
-            data_list.append(file)  # [] <-- np.array [1, 7, 512, 512]
+                else:
+                    file = self._intensity_normalize(file[-7:])
+                file:np.ndarray = np.expand_dims(file, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
+                data_list[0] = file   # [] <-- np.array [1, 7, 512, 512]
         data = np.concatenate(data_list, axis=0)  #  [n, 7, 512, 512]
         data = np.expand_dims(data, axis=0)
         return data.astype(np.float32)
@@ -139,22 +162,26 @@ class HighGranularityADMIRA(BaseADMIRA):
 
     def _preprocess(self, data:dict[str, np.ndarray]) -> np.ndarray:
         """ preprocess the data to have the data shape as the onnx models required """
-        data_list = []
-        for key, file in data:
+        data_list = np.zeros([self.input_dimension, 7, 512, 512])
+        for key, file in data.items():
             # find the central slices
             if not file.shape[0]>6: raise ValueError('image has slice number less than 7')
             if key=='CORT1f':
-                cs = central_selector(file)
-                file = self._intensity_normalize(file[cs:cs+7])
+                cs:int = central_selector(file)
+                file:np.ndarray = self._intensity_normalize(file[cs:cs+7])
+                file:np.ndarray = np.expand_dims(file, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
+                data_list[1] = file   # [] <-- np.array [1, 7, 512, 512]
             elif key=='TRAT1f':
                 if file.shape[0]//2 > 7:
                     center = file.shape[0]//2
                     s = slice(center-7, center+7, 2)
                     file = self._intensity_normalize(file[s])
-            file = np.expand_dims(file, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
-            data_list.append(file)  # [] <-- np.array [1, 7, 512, 512]
-        data = np.concatenate(data_list, axis=0)  #  [n, 7, 512, 512]
-        data = np.expand_dims(data, axis=0)
+                else:
+                    file = self._intensity_normalize(file[-7:])
+                file:np.ndarray = np.expand_dims(file, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
+                data_list[0] = file   # [] <-- np.array [1, 7, 512, 512]
+        # data = np.concatenate(data_list, axis=0)  #  [n, 7, 512, 512] / [N, 7, X, Y]
+        data = np.expand_dims(data_list, axis=0)
         return data.astype(np.float32)
 
 

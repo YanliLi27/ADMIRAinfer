@@ -126,7 +126,7 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
     corr, p_value = pearsonr(y, abs_x)# spearmanr(y, abs_x) # 
     plt.clf()
     plt.scatter(y, x, color='blue', marker='o')
-    plt.xlim(0, max_val)
+    plt.xlim(0, max_val*2)
     plt.ylim(min_val, max_val)
     plt.gca().set_aspect('equal', adjustable='box')
     plt.ylabel('diff between pred and gt')
