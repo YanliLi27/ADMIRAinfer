@@ -1,14 +1,12 @@
-import sys
-import os
 import argparse
-from pathlib import Path
-from typing import Union, Optional, Literal, Any, List  # Any for namespace
+import os
 
 import SimpleITK as sitk
 import numpy as np
+from loguru import logger
+from pathlib import Path
 
-from .admira_agent import ADMIRAquant
-
+from admira_agent import ADMIRAquant
 
 def read_dicom_series(directory: Path) -> sitk.Image:
     """
@@ -28,69 +26,71 @@ def read_dicom_series(directory: Path) -> sitk.Image:
     return image
 
 
-def main():
-    # -------------------------------------------------------------------------------
-    # TODO use --target_anatomical_site='Wrist', --target_inflammation_feature=Literal['TSY', 'SYN', 'BME'], 
-    # --quantification_type='Total', --model_type=['TRA'] to test one view model
-    # -------------------------------------------------------------------------------
+def quantification(input_directory: Path, input_models:Path):
+    #tra_path: str = r'R:\ESMIRA\ESMIRA_Database\LUMC\ESMIRA_patient_Arth2848_EAC\20100824\RightWrist_PostTRAT1f\images\itk\ESMIRA-LUMC-Arth2848_EAC-20100824-RightWrist_PostTRAT1f.mha'
+    #cor_path: str = r'R:\ESMIRA\ESMIRA_Database\LUMC\ESMIRA_patient_Arth2848_EAC\20100824\RightWrist_PostCORT1f\images\itk\ESMIRA-LUMC-Arth2848_EAC-20100824-RightWrist_PostCORT1f.mha'
 
-    input_directory = Path(os.environ['INPUT_FOLDER']) # input directory for DICOM
-    input_model = Path(os.environ['INPUT_MODEL']) # input directory for AI model
-    # model stored at: input_model / 'Total' or 'PerLocation' / f'{feature}__{site}_{mt}_fold{fold}Sum.onnx' or f'{feature}__{site}_{mt}_fold{fold}.onnx'
-    # feature - 'TSY', 'SYN', 'BME', site - 'Wrist', 'MCP', 'Foot', mt - '2dirc', 'TRA', 'COR', fold - 0->5
-    output_directory = Path(os.environ['OUTPUT_FOLDER']) # output directory for AI, folder where Pandas file is stored
+    tra_data = read_dicom_series(input_directory) # sitk.ReadImage(tra_path)
+    tra_data = sitk.GetArrayFromImage(tra_data)
 
+    # cor_data = sitk.ReadImage(cor_path)
+    # cor_data: np.ndarray = sitk.GetArrayFromImage(cor_data)
+    ##data = {'TRAT1f': tra_data, 'CORT1f': cor_data}
+    data = {'TRAT1f': tra_data}
 
-    # -------------------------------------- argparse -----------------------------------------
-    parser = argparse.ArgumentParser(
-        description="Read a folder of DICOM images with SimpleITK."
-    )
+    parser = argparse.ArgumentParser()
     parser.add_argument(
-        "target_anatomical_site",
-        type=Literal['Wrist', 'MCP', 'Foot'],
+        "--target_anatomical_site",
+        choices=['Wrist', 'MCP', 'Foot'],
         help="The anatomical site that wanted to be quantified",
         default='Wrist',
     )
     parser.add_argument(
-        "target_inflammation_feature",
-        type=Literal['TSY', 'SYN', 'BME'],
+        "--target_inflammation_feature",
+        choices=['TSY', 'SYN', 'BME'],
         help="The inflammation feature that wanted to be quantified",
         default='TSY',
     )
     parser.add_argument(
-        "quantification_type",
-        type=Literal['Total', 'PerLocation'],
+        "--quantification_type",
+        choices=['Total', 'PerLocation'],
         help="The output type - either one score for the entire site and feature, or one score for each location",
+        #default='PerLocation', # that is with data = {'TRAT1f': tra_data, 'CORT1f': cor_data}
         default='Total',
     )
     parser.add_argument(
-        "model_type",
-        type=List[str], # ['TRA'], ['COR'], ['TRA', 'COR']
+        "--model_type",
+        choices=[['TRA'], ['COR'], ['TRA', 'COR']],
         help="The model take-in type - either TRA or COR or TRA+COR",
-        default=['TRA'],
+        #default=['TRA', 'COR'],
+        default=['TRA'], # that is with data = {'TRAT1f': tra_data, 'CORT1f': cor_data}
     )
+
     args = parser.parse_args()
-    # -------------------------------------- argparse -----------------------------------------
 
-    # ------------------------------------ data loader ----------------------------------------
-    try:
-        itk_image:dict[str, np.ndarray] = read_dicom_series(input_directory)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    results = ADMIRAquant(data, args, model_dir=str(input_models))
 
-    # -------------------------------------------------------------------------------
-    # TODO itk_image{'TRAT1f': data-np.ndarray, Optional('CORT1f': data-np.ndarray)}
-    # -------------------------------------------------------------------------------
-    # ------------------------------------ data loader ----------------------------------------
+    print(results)
 
-    result:dict[str, float] = ADMIRAquant(itk_image, input_model, args)
-    # result: {'Total inflammation': float} or {'Site_Feature': float, ...}
 
-    # save_result(result, output_directory)
+def main() -> None:
+    # Hardcoded in algorithm_dockers\aorta_aneurysm\main.py
+    input_directory = Path(os.environ['INPUT_FOLDER'])
+    input_models = Path(os.environ['INPUT_MODELS'])
+    output_directory = Path(os.environ['OUTPUT_FOLDER'])
+
+    logger.remove()  # remove the default stderr logger
+    logger.add(output_directory / 'wrist_admira.log', level='TRACE', mode='w',
+               format='{time:%Y-%m-%d_%H:%M:%S.%f} | {level.icon} | {message} | {name}:{file}:{function}[{line}]')
+
+    # nifti(input_directory, output_directory / 'output.nii')
+    logger.info('Creating Quantification Object.')
+    result = quantification(input_directory, input_models)
     print(result)
+    #logger.info('Creating Structured Report.')
 
 
 if __name__ == "__main__":
     main()
+
 

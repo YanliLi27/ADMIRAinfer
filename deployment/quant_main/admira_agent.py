@@ -4,8 +4,8 @@ import numpy as np
 import onnxruntime as ort
 from typing import Literal, Union, List, Any, Optional
 
-from .admira_function import return_head, central_selector
-from .create_onnx import create_onnx_from_model  # necessary only when no onnx models exists, but pytorch model exists
+from admira_function import return_head, central_selector
+from create_onnx import create_onnx_from_model  # necessary only when no onnx models exists, but pytorch model exists
 
 
 def ADMIRAquant(image: np.array, args:Any, model_dir:Optional[str]=None) -> Union[float, dict[str, float]]:
@@ -114,25 +114,25 @@ class TotalADMIRA(BaseADMIRA):
     def _preprocess(self, data:dict[str, np.ndarray]):
         """ preprocess the data to have the data shape as the onnx models required """
         data_list = np.zeros([self.input_dimension, 7, 512, 512])
-        for key, file in data.items():
+        for key, image in data.items():
             # find the central slices
-            if not file.shape[0]>6: raise ValueError('image has slice number less than 7')
+            if not image.shape[0]>6: raise ValueError('image has slice number less than 7')
             if key=='CORT1f':
-                cs:int = central_selector(file)
-                file:np.ndarray = self._intensity_normalize(file[cs:cs+7])
-                file:np.ndarray = np.expand_dims(file, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
-                data_list[1] = file   # [] <-- np.array [1, 7, 512, 512]
+                cs:int = central_selector(image)
+                image:np.ndarray = self._intensity_normalize(image[cs:cs+7])
+                image:np.ndarray = np.expand_dims(image, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
+                data_list[1] = image   # [] <-- np.array [1, 7, 512, 512]
             elif key=='TRAT1f':
-                if file.shape[0]//2 > 7:
-                    center = file.shape[0]//2
+                if image.shape[0]//2 > 7:
+                    center = image.shape[0]//2
                     s = slice(center-7, center+7, 2)
-                    file = self._intensity_normalize(file[s])
+                    image = self._intensity_normalize(image[s])
                 else:
-                    file = self._intensity_normalize(file[-7:])
-                file:np.ndarray = np.expand_dims(file, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
-                data_list[0] = file   # [] <-- np.array [1, 7, 512, 512]
-        data = np.concatenate(data_list, axis=0)  #  [n, 7, 512, 512]
-        data = np.expand_dims(data, axis=0)
+                    image = self._intensity_normalize(image[-7:])
+                image:np.ndarray = np.expand_dims(image, axis=0)  # [7, 512, 512] -> [1, 7, 512, 512]
+                data_list[0] = image   # [] <-- np.array [1, 7, 512, 512]
+        # data = np.concatenate(data_list, axis=0)  #  [n, 7, 512, 512]
+        data = np.expand_dims(data_list, axis=0)
         return data.astype(np.float32)
 
 

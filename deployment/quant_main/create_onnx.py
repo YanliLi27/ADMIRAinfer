@@ -1,6 +1,6 @@
 import torch
 import os
-from .onnx_creation.csv3d import make_csv3dmodel
+from onnx_creation.csv3d import make_csv3dmodel
 from typing import Literal, Optional, List, Any
 
 
