@@ -6,7 +6,7 @@ from typing import Literal, Optional, List, Any
 
 def getmodel(site:List[Literal['Wrist','MCP','Foot']], 
              feature:List[Literal['TSY','SYN','BME']],
-             model_type:Optional[List[str]]=['TRA', 'COR'],
+             model_type:List[str]=['TRA', 'COR'],
              score_sum:bool=False):
     out_ch = 0
     if score_sum:

@@ -1,6 +1,4 @@
 # for cam visualization
-
-
 from typing import Literal, Optional, List
 import pandas as pd
 import torch
@@ -15,10 +13,15 @@ from models.get_model import getmodel
 from trained_weights.get_weight import getweight
 from utils.get_head import return_head, return_head_gt
 from torch.utils.data import DataLoader
+from datetime import datetime
+
+
 
 def cam_2view_main_process(task:Literal['CSA', 'TE', 'EAC'], site:Literal['Wrist','MCP','Foot'],
                            feature:Literal['TSY','SYN','BME'], view:Optional[List[str]]=['TRA', 'COR'], 
                            score_sum:bool=False, filt:Optional[list]=None):
+    now = datetime.now()
+    formatted_date = now.strftime("%Y-%m-%d")
     if not view:
         view = ['COR'] if feature in ['SYN', 'BME'] else ['TRA']
     # 模型本身和权重都需要site feature
@@ -38,7 +41,7 @@ def cam_2view_main_process(task:Literal['CSA', 'TE', 'EAC'], site:Literal['Wrist
             176, 335, 131, 291, 598, 135, 431, 560, 722, 133, 314, 781, 156, 356]
     
     # updated
-    eac_filt = [3713]# [3599,4263,3640,4367,3713,3852,3985,3970,4702,4243,4172,3893,4124,4686,3804,4515,3679,4396]
+    eac_filt = [4680, 4158, 4262, 4715, 3667, 4316, 3844, 3349]  # [3713]# [3599,4263,3640,4367,3713,3852,3985,3970,4702,4243,4172,3893,4124,4686,3804,4515,3679,4396]
 
     filt = ['Csa' + str(x).zfill(3) for x in csa_filt] if task=='CSA' else ['Arth' + str(x).zfill(4) for x in eac_filt]
     data, _ = getdata(task, site, feature, view, None, score_sum, path_flag=False) \
@@ -46,7 +49,7 @@ def cam_2view_main_process(task:Literal['CSA', 'TE', 'EAC'], site:Literal['Wrist
     data = DataLoader(dataset=data, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
     # filt 用来控制哪些id会被使用
     # data: x,y,z: img, scores, path
-    namestr = f'ramris{task}_site{site}_fea{feature}_{view[0]}' if len(view)<2 else f'ramris{task}_site{site}_fea{feature}_multiview'
+    namestr = f'{formatted_date}_ramris{task}_site{site}_fea{feature}_{view[0]}' if len(view)<2 else f'{formatted_date}_ramris{task}_site{site}_fea{feature}_multiview'
     # CAM生成不需要采用head的模式，只需要正常往后推就可以
     # -------------------------------------------------- initialize camagent ----------------------------------------------- #
     Agent = CAMAgent(model, target_layer, data,  
@@ -82,7 +85,7 @@ def cam_2view_main_process(task:Literal['CSA', 'TE', 'EAC'], site:Literal['Wrist
                 # D:\ESMIRAcode\RAMRISinfer\output\ramris_siteWrist_feaTSY_TRA\cam\fullcam\scalenorm_rmFalse_feall0.05\cate0
                 writter = sitk.ImageFileWriter()
                 writter.SetFileName(save_name)
-
+                
                 savecam = cam[b][g][0]
                 writter.Execute(sitk.GetImageFromArray(savecam))
 
@@ -96,6 +99,6 @@ def cam_2view_main_process(task:Literal['CSA', 'TE', 'EAC'], site:Literal['Wrist
 
 if __name__=='__main__':
     for site in ['Wrist']: #, 'MCP', 'Foot']:
-        for feature in ['BME']: # 'TSY','SYN',
+        for feature in ['BME', 'TSY','SYN']:
             for view in [['TRA'], ['COR']]:
                 cam_2view_main_process('EAC', site, feature, view, True)

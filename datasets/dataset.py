@@ -57,6 +57,7 @@ class CLIPDataset3D(data.Dataset):
         for indiv_path in paths:
             # indiv_path: 'subdir\names.mha:cs'
             # updated: 'subdir\names.mha:1to6plus1to11'
+            # print(indiv_path)
             try:
                 path, cs =  indiv_path.split('[')
             except:
