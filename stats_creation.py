@@ -9,6 +9,10 @@ from utils.get_head import return_head, return_head_gt
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import matplotlib.pyplot as plt
+from scipy.stats import pearsonr, spearmanr
+
+
 # 从 E:\ADMIRA_models\weights\sumFalse、True 获取 {BIO}__{SITE}_2dirc_fold{FOLD}.model的权重 BME__Foot_2dirc_fold3.model
 
 # 从 getdata获得对应的fold的 monitoring 数据
@@ -29,7 +33,8 @@ from tqdm import tqdm
 def main_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', 'MCP', 'Foot'],
                  feature:Literal['TSY','SYN','BME'], 
                  view:List[str]=['TRA', 'COR'],
-                 order:int=0, score_sum:bool=False, filt:Optional[list]=None):
+                 order:int=0, score_sum:bool=False, filt:Optional[list]=None,
+                 name_str:str='local/250825'):
     model = getmodel(site, feature, view, score_sum)  # DONE!
     model = getweight_outside(model, r'E:\ADMIRA_models\weights', site, feature, score_sum, view, order)  # DONE!
     model = model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
@@ -66,7 +71,7 @@ def main_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', 'MCP', 
                 df.loc[idx] = row
                 idx += 1
         # 用pd.concat([df, new_row], ignore_index=True)来添加新的一行数据
-    df.to_csv(f'./output/all/0unmerged_{site}_{feature}_{task}_sum{score_sum}_{order}.csv')
+    df.to_csv(f'./output/{name_str}/0unmerged_{site}_{feature}_{task}_sum{score_sum}_{order}.csv')
     return df
     # inference:
     # 直接for x,y,z in Dataloader():
@@ -78,7 +83,8 @@ def main_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', 'MCP', 
 def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', 'MCP', 'Foot'],
                  feature:Literal['TSY','SYN','BME'], 
                  view:List[str]=['TRA', 'COR'],
-                 score_sum:bool=False, filt:Optional[list]=None):
+                 score_sum:bool=False, filt:Optional[list]=None,
+                 name_str:str='local/250825'):
     df = None
     for fold in range(5):
         df_cur = main_process(task, site, feature, view=view, order=fold, score_sum=score_sum, filt=filt)
@@ -86,20 +92,74 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
         else: df = pd.concat([df, df_cur])
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/all/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv')
+    column_list = list(df.columns.values[3:])
+    key_cols = ['ID', 'ScanDatum', 'ID_Timepoint']
+    pred_cols:list = [col for col in column_list if 'GT' not in col and 'gt' not in col]
+    gt_cols:list = [col for col in column_list if 'GT' in col or 'gt' in col]
+
+    # get sum 
+    df[f'{site}_{feature}_predscore_sum'] = df[pred_cols].sum(axis=1)
+    df[f'{site}_{feature}_gt_sum'] = df[gt_cols].sum(axis=1)
+    df[f'{site}_{feature}_diff_for_analysis'] = df[f'{site}_{feature}_predscore_sum'] - df[f'{site}_{feature}_gt_sum'] 
+
+    # df ['ID', 'ScanDatum', 'ID_Timepoint', 'f'{site}_{feature}_predscore_sum'', 'gt_sum_for_analysis', 'diff']
+
+    extended_column_list = column_list + [f'{site}_{feature}_predscore_sum', 
+                                          f'{site}_{feature}_gt_sum', 
+                                          f'{site}_{feature}_diff_for_analysis']
+    df_res = df.groupby(key_cols, as_index=False)[extended_column_list].mean()
+
+    df_res[f'{site}_{feature}_diff'] = df_res[f'{site}_{feature}_predscore_sum'] - df_res[f'{site}_{feature}_gt_sum']
+    df_res[f'{site}_{feature}_abs_diff'] = df_res[f'{site}_{feature}_diff'].apply(lambda x: abs(x))
+    # df_res['diff'] = df_res['diff_for_analysis']
+    # df_res['abs_diff'] = df_res['diff'].apply(lambda x: abs(x))
+    
+    df_std:pd.DataFrame = df.groupby(key_cols, as_index=False)[f'{site}_{feature}_predscore_sum'].std()
+    df_std:pd.DataFrame = df_std.rename(columns={f'{site}_{feature}_predscore_sum': f'{site}_{feature}_predscore_fold_std'})
+
+    df_res = pd.merge(df_res, df_std, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='left')
+
+    # create plot
+    x, y, abs_x = df_res[f'{site}_{feature}_diff'].to_numpy(), \
+                  df_res[f'{site}_{feature}_predscore_fold_std'].to_numpy(), \
+                  df_res[f'{site}_{feature}_abs_diff'].to_numpy()
+    min_val, max_val = min(min(x), min(y)), max(max(x), max(y), -min(x), -min(y))
+ 
+    corr, p_value = pearsonr(y, abs_x)# spearmanr(y, abs_x) # 
+    plt.clf()
+    plt.scatter(y, x, color='blue', marker='o')
+    plt.xlim(0, max_val*2)
+    plt.ylim(min_val, max_val)
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.ylabel('diff between pred and gt')
+    plt.xlabel('std among models')
+    plt.title(f'{site}_{feature}_{task}_sum{score_sum}: corr with abs - {corr}, p - {p_value}')
+    plt.grid(True)
+
+    path = f'./output/{name_str}/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.jpg'
+    plt.savefig(path, dpi=300, bbox_inches='tight')
+    plt.clf()
+
+
+
+
+
+
+    df.to_csv(f'./output/{name_str}/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv')
     return df
 
 
 def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'], 
                           site:Literal['Wrist', 'MCP', 'Foot'],
                           view:List[str]=['TRA', 'COR'],
-                          score_sum:bool=False, filt:Optional[list]=None):
+                          score_sum:bool=False, filt:Optional[list]=None,
+                          name_str:str='local/250825'):
     df = None
     for feature in ['TSY','SYN','BME']:
-        if not os.path.exists(f'./output/all/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv'):
+        if not os.path.exists(f'./output/{name_str}/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv'):
             df_cur = merge_fold_process(task, site, feature, view, score_sum, filt)
         else:
-            df_cur = pd.read_csv(f'./output/all/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv', index_col=0)
+            df_cur = pd.read_csv(f'./output/{name_str}/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv', index_col=0)
         if score_sum:
             df_cur = df_cur.rename(columns={'sums': f'{site}_{feature}_pred', 'sums_gt': f'{site}_{feature}_gt'})
             # df_cur = df_cur.sort_values(by='ID').reset_index(drop=True)
@@ -107,30 +167,33 @@ def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'],
         else: df = pd.merge(df, df_cur, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='inner')
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/all/2featuremerged_{site}_{task}_sum{score_sum}.csv')
+    df.to_csv(f'./output/{name_str}/2featuremerged_{site}_{task}_sum{score_sum}.csv')
     return df
 
 
 def merge_site_process(task:Literal['TE', 'CSA', 'ALL'], 
                        view:List[str]=['TRA', 'COR'],
-                       score_sum:bool=False, filt:Optional[list]=None):
+                       score_sum:bool=False, filt:Optional[list]=None,
+                       name_str:str='local/250825'):
+    if not os.path.exists(f'./output/{name_str}'): 
+        os.makedirs(f'./output/{name_str}')
     df = None
     for site in ['Wrist', 'MCP', 'Foot']:
-        if not os.path.exists(f'./output/all/2featuremerged_{site}_{task}_sum{score_sum}.csv'):
+        if not os.path.exists(f'./output/{name_str}/2featuremerged_{site}_{task}_sum{score_sum}.csv'):
             df_cur = merge_feature_process(task, site, view, score_sum, filt)
         else:
-            df_cur = pd.read_csv(f'./output/all/2featuremerged_{site}_{task}_sum{score_sum}.csv', index_col=0)
+            df_cur = pd.read_csv(f'./output/{name_str}/2featuremerged_{site}_{task}_sum{score_sum}.csv', index_col=0)
         if df is None: df = df_cur
         else: df = pd.merge(df, df_cur, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='outer')
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
-    df.to_csv(f'./output/all/3sitemerged_{task}_sum{score_sum}.csv')
+    df.to_csv(f'./output/{name_str}/3sitemerged_{task}_sum{score_sum}.csv')
     return df
 
 
 if __name__=='__main__':
     for ss in [True, False]:  # True, 
-        merge_site_process('ALL', view=['TRA', 'COR'], score_sum=ss, filt=None)
+        merge_site_process('ALL', view=['TRA', 'COR'], score_sum=ss, filt=None, name_str='local/251008')
 
 
 
