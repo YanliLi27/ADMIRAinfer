@@ -364,7 +364,8 @@ def data_initialization(ramris_root:List[str]=['CSA', 'EAC', 'ATL'],
 
 def getdata(task:Literal['CSA', 'TE', 'ATL', 'EAC', 'ALL'], site:Literal['Wrist','MCP','Foot'], feature:Literal['TSY','SYN','BME'], 
             view:list[str]=['TRA', 'COR'], filt:Optional[list]=None, score_sum:bool=False, order:int=0, 
-            loading_mode:Literal['Offline', 'Online']='Online', path_flag:bool=True):
+            loading_mode:Literal['Offline', 'Online']='Online', path_flag:bool=True,
+            filt_fold:bool=True):
     path_default = {'ALL':f'./datasets/intermediate/csv/all_init_{loading_mode}.csv', 
                     'EAC':f'./datasets/intermediate/csv/eac_init_{loading_mode}.csv',
                     'CSA':f'./datasets/intermediate/csv/csa_init_{loading_mode}.csv', 
@@ -382,17 +383,18 @@ def getdata(task:Literal['CSA', 'TE', 'ATL', 'EAC', 'ALL'], site:Literal['Wrist'
     # ---------------------------- get the selected rows ----------------------------
     # select certain order group using pickle record
     print(f'data number before filtering: {df.shape[0]}')
-    if order==-1:
-        pass
-    elif order==0:
-        select_id:np.ndarray = df['ID'].to_numpy()
-        fold_id:list = reverse_pkl_reader(site, feature, order, score_sum, select_id)
-        df:pd.DataFrame = df[df['ID'].isin(fold_id)]
-    else:
-        fold_id:list = pkl_reader(site, feature, order, score_sum)
-        df:pd.DataFrame = df[df['ID'].isin(fold_id)]
-
-    print(f'data number after folding: {df.shape[0]}')
+    if filt_fold:
+        if order==-1:
+            pass
+        elif order==0:
+            select_id:np.ndarray = df['ID'].to_numpy()
+            fold_id:list = reverse_pkl_reader(site, feature, order, score_sum, select_id)
+            df:pd.DataFrame = df[df['ID'].isin(fold_id)]
+        else:
+            fold_id:list = pkl_reader(site, feature, order, score_sum)
+            df:pd.DataFrame = df[df['ID'].isin(fold_id)]
+        print(f'data number after folding: {df.shape[0]}')
+        
     # exclude by group
     if task in ['CSA', 'EAC', 'ATL', 'TE']:
         short = {'CSA':'Csa', 'EAC':'Arth', 'ATL':'Atlas', 'TE':'Treat'}
