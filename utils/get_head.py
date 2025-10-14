@@ -1,5 +1,5 @@
 
-def return_head(site, bio, return_all:bool=False):
+def return_head(site, bio, return_all:bool=False) -> list[str]:
     default_site:list={'Wrist':0, 'MCP':1, 'Foot':2}
     default_bio:list={'ERO':0, 'BME':1, 'SYN':2, 'TSY':3}
     output_keys = [
@@ -29,7 +29,7 @@ def return_head(site, bio, return_all:bool=False):
 
 
 
-def return_head_gt(site, bio, return_all:bool=False):
+def return_head_gt(site, bio, return_all:bool=False) -> list[str]:
     default_site:list={'Wrist':0, 'MCP':1, 'Foot':2}
     default_bio:list={'ERO':0, 'BME':1, 'SYN':2, 'TSY':3}
     output_keys = [
