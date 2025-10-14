@@ -90,40 +90,25 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
                  view:List[str]=['TRA', 'COR'],
                  score_sum:bool=False, filt:Optional[list]=None,
                  name_str:str='temp'):
-    df_list:list = []
+    df_list:list[pd.DataFrame] = []
     for fold in range(5):
         df_cur = main_process(task, site, feature, view=view, order=fold, score_sum=score_sum, filt=filt, name_str=name_str)
         df_list.append(df_cur)
     assert len(df_list)>1 
-    df = 
+    renamed_dfs = []
+    for i, df in enumerate(df_list, 1):
+        df_temp = df.copy()
+        df_temp = df_temp.rename(columns={col: f"{col}_fold{i}" for col in df.columns if col.startswith('D')})
+        renamed_dfs.append(df_temp)
+    df = reduce(lambda left, right: pd.merge(left, right, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='outer'), renamed_dfs)
+    column_list = list(df_list[0].columns.values[3:])
+    for d in column_list:
+        fold_cols = [f"{d}_fold{i}" for i in range(1, 6)]
+        df[f"{d}_foldmean"] = df[fold_cols].mean(axis=1)
+        df[f"{d}_foldstd"] = df[fold_cols].std(axis=1)
+
     df = df.sort_values(by='ID').reset_index(drop=True)
-    column_list = list(df.columns.values[3:])
-    key_cols = ['ID', 'ScanDatum', 'ID_Timepoint']
-    pred_cols:list = [col for col in column_list if 'GT' not in col and 'gt' not in col]
-    gt_cols:list = [col for col in column_list if 'GT' in col or 'gt' in col]
-
-    # get sum 
-    df[f'{site}_{feature}_predscore_sum'] = df[pred_cols].sum(axis=1)
-    df[f'{site}_{feature}_gt_sum'] = df[gt_cols].sum(axis=1)
-    df[f'{site}_{feature}_diff_for_analysis'] = df[f'{site}_{feature}_predscore_sum'] - df[f'{site}_{feature}_gt_sum'] 
-
-    # df ['ID', 'ScanDatum', 'ID_Timepoint', 'f'{site}_{feature}_predscore_sum'', 'gt_sum_for_analysis', 'diff']
-
-    extended_column_list = column_list + [f'{site}_{feature}_predscore_sum', 
-                                          f'{site}_{feature}_gt_sum', 
-                                          f'{site}_{feature}_diff_for_analysis']
-    df_res = df.groupby(key_cols, as_index=False)[extended_column_list].mean()
-
-    df_res[f'{site}_{feature}_diff'] = df_res[f'{site}_{feature}_predscore_sum'] - df_res[f'{site}_{feature}_gt_sum']
-    df_res[f'{site}_{feature}_abs_diff'] = df_res[f'{site}_{feature}_diff'].apply(lambda x: abs(x))
-    # df_res['diff'] = df_res['diff_for_analysis']
-    # df_res['abs_diff'] = df_res['diff'].apply(lambda x: abs(x))
-    
-    df_std:pd.DataFrame = df.groupby(key_cols, as_index=False)[f'{site}_{feature}_predscore_sum'].std()
-    df_std:pd.DataFrame = df_std.rename(columns={f'{site}_{feature}_predscore_sum': f'{site}_{feature}_predscore_fold_std'})
-
-    df_res = pd.merge(df_res, df_std, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='left')
-    return df_res
+    return df
 
 
 def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'], 
@@ -138,13 +123,16 @@ def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'],
         else:
             df_cur = pd.read_csv(f'./output/all_te_{name_str}/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv', index_col=0)
         if score_sum:
-            # TODO
-            df_cur = df_cur.rename(columns={'sums_foldmean': f'{site}_{feature}_pred', 
-                                            'sums_gt_foldmean': f'{site}_{feature}_gt',
-                                            'sums_foldmean': f'{site}_{feature}_pred', })
+            rename_dict = {
+                            col: f"{site}_{feature}_{col.replace('_foldmean', '')}_pred"
+                            for col in df_cur.columns if col.endswith('_foldmean')
+                            }
+            df_cur = df_cur.rename(columns=rename_dict)
             # df_cur = df_cur.sort_values(by='ID').reset_index(drop=True)
-        if df is None: df = df_cur
-        else: df = pd.merge(df, df_cur, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='inner')
+        if df is None: 
+            df = df_cur
+        else: 
+            df = pd.merge(df, df_cur, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='inner')
     assert df is not None
     df = df.sort_values(by='ID').reset_index(drop=True)
 
