@@ -91,6 +91,7 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
                  score_sum:bool=False, filt:Optional[list]=None,
                  name_str:str='temp'):
     df_list:list[pd.DataFrame] = []
+    id_head= ['ID', 'ScanDatum', 'ID_Timepoint']
     for fold in range(5):
         df_cur = main_process(task, site, feature, view=view, order=fold, score_sum=score_sum, filt=filt, name_str=name_str)
         df_list.append(df_cur)
@@ -98,7 +99,7 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
     renamed_dfs = []
     for i, df in enumerate(df_list, 1):
         df_temp = df.copy()
-        df_temp = df_temp.rename(columns={col: f"{col}_fold{i}" for col in df.columns if col.startswith('D')})
+        df_temp = df_temp.rename(columns={col: f"{col}_fold{i}" for col in df.columns if not col in id_head})
         renamed_dfs.append(df_temp)
     df = reduce(lambda left, right: pd.merge(left, right, on=['ID', 'ScanDatum', 'ID_Timepoint'], how='outer'), renamed_dfs)
     column_list = list(df_list[0].columns.values[3:])
@@ -108,6 +109,7 @@ def merge_fold_process(task:Literal['TE', 'CSA', 'ALL'], site:Literal['Wrist', '
         df[f"{d}_foldstd"] = df[fold_cols].std(axis=1)
 
     df = df.sort_values(by='ID').reset_index(drop=True)
+    df.to_csv(f'./output/all_te_{name_str}/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv')
     return df
 
 
@@ -123,11 +125,9 @@ def merge_feature_process(task:Literal['TE', 'CSA', 'ALL'],
         else:
             df_cur = pd.read_csv(f'./output/all_te_{name_str}/1foldmerged_{site}_{feature}_{task}_sum{score_sum}.csv', index_col=0)
         if score_sum:
-            rename_dict = {
-                            col: f"{site}_{feature}_{col.replace('_foldmean', '')}_pred"
-                            for col in df_cur.columns if col.endswith('_foldmean')
-                            }
+            rename_dict = {col: f"{site}_{feature}_{col}" for col in df_cur.columns if '_fold' in col}
             df_cur = df_cur.rename(columns=rename_dict)
+
             # df_cur = df_cur.sort_values(by='ID').reset_index(drop=True)
         if df is None: 
             df = df_cur
@@ -165,7 +165,7 @@ def merge_site_process(task:Literal['TE', 'CSA', 'ALL'],
 
 
 if __name__=='__main__':
-    for ss in [False]:  # True, 
+    for ss in [True, False]:  # 
         merge_site_process('TE', view=['TRA', 'COR'], score_sum=ss, filt=None, name_str=f'_sum{ss}_with_std_split')
 
 
